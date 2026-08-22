@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Income Calendar</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+
+<!-- ============ SETUP SCREEN ============ -->
+<section id="setup-screen" class="screen">
+  <div class="setup-card">
+    <h1>Income Calendar</h1>
+    <p class="muted">Connect this app to your private data repository on GitHub.</p>
+
+    <label>
+      GitHub username (owner)
+      <input id="cfg-owner" type="text" autocomplete="off" spellcheck="false" placeholder="your-github-username">
+    </label>
+
+    <label>
+      Data repository name
+      <input id="cfg-repo" type="text" autocomplete="off" spellcheck="false" placeholder="income-calendar-data">
+    </label>
+
+    <label>
+      File path inside that repo
+      <input id="cfg-path" type="text" autocomplete="off" spellcheck="false" value="data/entries.json">
+    </label>
+
+    <label>
+      Branch
+      <input id="cfg-branch" type="text" autocomplete="off" spellcheck="false" value="main">
+    </label>
+
+    <label>
+      Personal Access Token
+      <input id="cfg-token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_...">
+      <small class="muted">Stored only in this browser. Never sent anywhere except github.com.</small>
+    </label>
+
+    <label>
+      Currency
+      <select id="cfg-currency">
+        <option value="BRL">R$ — Brazilian Real</option>
+        <option value="USD">$ — US Dollar</option>
+        <option value="EUR">€ — Euro</option>
+        <option value="GBP">£ — British Pound</option>
+      </select>
+    </label>
+
+    <button id="connect-btn" class="primary">Connect</button>
+    <p id="setup-error" class="error hidden"></p>
+    <p class="muted small">
+      First time here? Follow the setup steps in the
+      <a href="https://github.com/vbolds/V-s-Income-Calendar#setup" target="_blank" rel="noopener">README</a>.
+    </p>
+  </div>
+</section>
+
+<!-- ============ MAIN APP ============ -->
+<section id="app-screen" class="screen hidden">
+
+  <header class="topbar">
+    <h1 class="app-title">Income Calendar</h1>
+    <div class="topbar-right">
+      <span id="save-status" class="save-status">Loading…</span>
+      <button id="save-btn" class="primary" disabled>Save</button>
+      <button id="reload-btn" class="ghost" title="Discard local changes and reload from GitHub">Reload</button>
+      <button id="settings-btn" class="ghost" title="Connection settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- Rolling window summary -->
+  <section class="window-panel">
+    <div class="window-controls">
+      <label class="inline">
+        Show the month ending on
+        <input id="anchor-date" type="date">
+      </label>
+      <div class="window-range muted" id="window-range"></div>
+    </div>
+    <div class="window-totals">
+      <div class="total-card">
+        <span class="total-label">Gross</span>
+        <span class="total-value" id="total-gross">—</span>
+      </div>
+      <div class="total-card net">
+        <span class="total-label">Net</span>
+        <span class="total-value" id="total-net">—</span>
+      </div>
+      <div class="total-card small">
+        <span class="total-label">Entries</span>
+        <span class="total-value" id="total-count">—</span>
+      </div>
+    </div>
+  </section>
+
+  <main class="workspace">
+
+    <!-- Calendar -->
+    <section class="pane calendar-pane">
+      <div class="pane-header">
+        <button id="prev-month" class="nav-btn" aria-label="Previous month">‹</button>
+        <div class="month-picker">
+          <select id="month-select"></select>
+          <input id="year-input" type="number" step="1" inputmode="numeric">
+        </div>
+        <button id="next-month" class="nav-btn" aria-label="Next month">›</button>
+        <button id="today-btn" class="ghost small-btn">Today</button>
+      </div>
+      <div class="weekday-row" id="weekday-row"></div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+      <p class="muted small hint">Click a day to add income on that date.</p>
+    </section>
+
+    <!-- Table -->
+    <section class="pane table-pane">
+      <div class="pane-header table-header">
+        <strong>All entries</strong>
+        <div class="table-actions">
+          <input id="table-filter" type="search" placeholder="Filter…" autocomplete="off">
+          <button id="add-row-btn" class="ghost small-btn">+ Add entry</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="entries-table">
+          <thead>
+            <tr>
+              <th class="col-date">Date</th>
+              <th class="col-source">Source</th>
+              <th class="col-amount">Gross</th>
+              <th class="col-amount">Net</th>
+              <th class="col-notes">Notes</th>
+              <th class="col-del"></th>
+            </tr>
+          </thead>
+          <tbody id="entries-body"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" class="foot-label">Shown total</td>
+              <td class="col-amount" id="foot-gross">—</td>
+              <td class="col-amount" id="foot-net">—</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="muted small hint">Edits are kept locally until you press <strong>Save</strong>.</p>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+</section>
+
+<!-- Day editor dialog -->
+<dialog id="day-dialog">
+  <form method="dialog" class="day-dialog-inner">
+    <h2 id="day-dialog-title">Add income</h2>
+    <label>
+      Date
+      <input id="day-date" type="date" required>
+    </label>
+    <label>
+      Source
+      <input id="day-source" type="text" placeholder="Salary, freelance, dividend…" autocomplete="off">
+    </label>
+    <div class="two-col">
+      <label>
+        Gross
+        <input id="day-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
+      </label>
+      <label>
+        Net
+        <input id="day-net" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
+      </label>
+    </div>
+    <label>
+      Notes
+      <input id="day-notes" type="text" autocomplete="off" placeholder="optional">
+    </label>
+    <menu>
+      <button value="cancel" class="ghost">Cancel</button>
+      <button id="day-save" value="save" class="primary">Add entry</button>
+    </menu>
+  </form>
+</dialog>
+
+</body>
+</html>

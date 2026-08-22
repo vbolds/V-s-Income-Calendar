@@ -1,0 +1,184 @@
+# Income Calendar
+
+A private log of your income, in a calendar and a table, that you can open from
+any browser — Mac, Windows, phone — and that keeps every change forever.
+
+- **Calendar view** — one month at a time, navigate back through years of
+  payment history or forward to plan what is coming.
+- **Table view** — the same entries as a spreadsheet, side by side with the
+  calendar. Edit in either one; both always show the same data.
+- **"How much did I make in the month ending on…"** — pick any date and get the
+  gross and net totals for the month that ends on it (e.g. August 2nd shows
+  July 2nd → August 2nd, both days counted).
+- **Save button** — edit as much as you like; pressing Save writes everything to
+  GitHub as a single commit. Unsaved edits are kept safe in your browser in the
+  meantime.
+
+Everything runs for free: a public repo for the app, a **private** repo for your
+data, GitHub Pages for hosting.
+
+---
+
+## How it works
+
+There is no server and no database service. The app is a plain web page, and
+your income entries live as one JSON file in a private GitHub repository that
+only you can read. The page talks to GitHub directly from your browser.
+
+```
+Your browser  ──►  github.com/you/income-calendar-data (private)
+   the app              data/entries.json  ← one commit per Save
+```
+
+Because every Save is a git commit, you get a complete, permanent history of
+every change you ever make — for free, with no extra work.
+
+---
+
+## Setup
+
+You need two repositories: **this one** (the app — public, so GitHub Pages is
+free) and **a new private one** (your data). Your income numbers only ever live
+in the private one.
+
+### 1. Create the private data repository
+
+1. Go to <https://github.com/new>.
+2. Repository name: `income-calendar-data`
+3. Select **Private**. ← important
+4. Tick **Add a README file** (a repo needs at least one file to have a branch).
+5. Click **Create repository**.
+
+You don't need to add anything else — the app creates the data file on your
+first Save.
+
+### 2. Create an access token
+
+This is the key that lets the app read and write that one repository. It is like
+a hotel key card: it opens only that room, not your whole GitHub account.
+
+1. Go to <https://github.com/settings/personal-access-tokens/new>
+   (Settings → Developer settings → Personal access tokens → Fine-grained tokens).
+2. **Token name**: `income-calendar`
+3. **Expiration**: 1 year (you will make a new one when it expires).
+4. **Repository access**: choose **Only select repositories**, then pick
+   `income-calendar-data`.
+5. **Permissions** → **Repository permissions** → find **Contents** and set it to
+   **Read and write**. (Leave everything else alone.)
+6. Click **Generate token** and **copy the token**. GitHub shows it only once —
+   if you lose it, just make another one.
+
+### 3. Turn on GitHub Pages for this repo
+
+1. In **this** repository: **Settings → Pages**.
+2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
+3. Branch: `main`, folder: `/ (root)`. Save.
+4. Wait a minute, then your app is live at
+   `https://<your-username>.github.io/V-s-Income-Calendar/`.
+
+> This repository is public so that Pages is free, which means someone with the
+> link can load the page — but not your data. Without your token the page shows
+> nothing but the empty connection screen.
+
+### 4. Connect
+
+Open the Pages address, then fill in:
+
+| Field | Value |
+| --- | --- |
+| GitHub username | your username |
+| Data repository | `income-calendar-data` |
+| File path | `data/entries.json` |
+| Branch | `main` |
+| Token | the token you copied |
+| Currency | your currency |
+
+Press **Connect**. That's it.
+
+Repeat this step once per device (Mac, phone, work computer) — the token is
+stored in that browser only and never leaves it except to talk to github.com.
+
+---
+
+## Using it
+
+**Add income** — click any day on the calendar, or press **+ Add entry** in the
+table. Several incomes can land on the same day; each is its own entry.
+
+**Edit fast** — the table is built for speed: type straight into any cell, and
+press <kbd>Enter</kbd> to jump down the same column. Amounts accept whatever you
+type: `1.234,56`, `1234.56`, or `1000`.
+
+**See a month's income** — set *"Show the month ending on"* to the date you care
+about. The totals show gross and net for that whole window, and the calendar
+highlights the days it covers.
+
+**Save** — nothing reaches GitHub until you press **Save**
+(<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>S</kbd> also works). One press = one
+commit, no matter how many edits it contains.
+
+**Unsaved work is safe** — as you type, a draft is kept in your browser. If the
+tab crashes or the phone dies, the draft is offered back the next time you open
+the app. Drafts are local only and never create commits.
+
+---
+
+## Good to know
+
+- **The window is inclusive on both ends.** "Ending August 2nd" counts income on
+  July 2nd *and* on August 2nd. If you check two months back to back, a payment
+  landing exactly on a boundary day is counted in both.
+- **Short months clamp.** "Ending March 31st" starts on February 28th (or 29th),
+  because February has no 31st.
+- **Editing from two devices at once.** If the file changed on GitHub since the
+  page loaded, GitHub refuses the write and the app asks whether to overwrite or
+  reload — nothing is silently lost.
+- **Your data file** is readable and editable directly on GitHub if you ever
+  want to fix something by hand, or feed it into a spreadsheet.
+- **Costs nothing.** Private repos, GitHub Pages, and the API calls this app
+  makes are all free. The only thing that would ever cost money is an optional
+  custom domain.
+
+### Data format
+
+```json
+{
+  "version": 1,
+  "updatedAt": "2026-08-22T12:00:00.000Z",
+  "entries": [
+    {
+      "id": "9f0c…",
+      "date": "2026-08-05",
+      "source": "Salary",
+      "gross": 8000,
+      "net": 6400,
+      "notes": ""
+    }
+  ]
+}
+```
+
+Expenses are not part of this version. When they are added, they will slot into
+the same file as entries with a type, so this history stays intact.
+
+### Signing out of a device
+
+Open the browser console on that device and run:
+
+```js
+incomeCalendarSignOut()
+```
+
+That erases the token, the settings and any local draft from that browser.
+
+---
+
+## Running it locally
+
+The app uses JavaScript modules, so it needs a web server rather than opening
+the file directly:
+
+```bash
+python3 -m http.server 8899
+# then open http://127.0.0.1:8899
+```
