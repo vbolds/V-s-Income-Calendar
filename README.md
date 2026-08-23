@@ -10,6 +10,8 @@ any browser — Mac, Windows, phone — and that keeps every change forever.
 - **Any period you like** — pick a first day and a last day, both counted, and
   get the gross and net totals for it. Presets cover the common ones, including
   *Month back* (e.g. last day August 2nd → July 2nd to August 2nd).
+- **Received vs expected** — plan income for months ahead and flag each one as
+  **Recebido** once it actually lands. The totals show both, split apart.
 - **Categories** — tag each income and filter the totals by category, with a
   per-category breakdown of the chosen period.
 - **Dízimo** — flag any income as tithe; flagged entries get a strong green
@@ -119,12 +121,18 @@ the next time. Filter by one with the **Category** dropdown, or by clicking a
 category in the breakdown strip (click it again to clear). The filter narrows
 both the totals and the table.
 
+**Recebido** — tick it once the money actually arrives. Income you have not
+received yet is drawn hollow with a dashed outline on the calendar, and in
+italics in the table, so a plan never looks like cash in hand. New entries start
+ticked when dated today or earlier, unticked when dated ahead.
+
 **Dízimo** — tick the box on an entry, in the dialog or in the table's *Dízimo*
 column. Flagged entries get a strong green outline on their calendar chip.
 
 **See a period's income** — set **From** and **To**; both days are counted. The
-totals show gross and net for that period, the calendar highlights the days it
-covers, and the breakdown strip shows the net per category. The presets are:
+headline is the net for that period, split into **Received** (money in hand) and
+**Expected** (still to come). The calendar highlights the days the period covers,
+and the breakdown strip shows the net per category. The presets are:
 
 | Preset | What it does |
 | --- | --- |
@@ -174,6 +182,7 @@ the app. Drafts are local only and never create commits.
       "category": "Employment",
       "gross": 8000,
       "net": 6400,
+      "received": true,
       "tithe": true,
       "notes": ""
     }
@@ -181,8 +190,11 @@ the app. Drafts are local only and never create commits.
 }
 ```
 
-Files written before categories and the tithe flag existed still load fine —
-those fields simply default to empty and `false`.
+Older files still load fine. A missing category or tithe flag defaults to empty
+and `false`; a missing **received** flag is read from the date — dated today or
+earlier counts as received, dated ahead counts as expected — so entries written
+before the flag existed land on the right side of the split. Once you save, the
+flag is written out explicitly and the date no longer decides it.
 
 Expenses are not part of this version. When they are added, they will slot into
 the same file as entries with a type, so this history stays intact.

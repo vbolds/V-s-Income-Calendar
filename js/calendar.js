@@ -110,7 +110,8 @@ export class CalendarView {
     let body = '';
     if (entries.length) {
       const chips = entries.slice(0, MAX_CHIPS).map((e) => `
-        <span class="chip${e.tithe ? ' tithe' : ''}" data-entry-id="${e.id}"${e.tithe ? ' title="Dízimo"' : ''}>
+        <span class="chip${e.tithe ? ' tithe' : ''}${e.received ? '' : ' pending'}" data-entry-id="${e.id}"
+          title="${chipTitle(e)}">
           <em>${escapeHtml(e.source || 'Income')}</em>
           <b>${formatCompact(e.net ?? e.gross ?? 0, this.currency)}</b>
         </span>`).join('');
@@ -132,6 +133,13 @@ export class CalendarView {
         ${body}
       </button>`;
   }
+}
+
+function chipTitle(entry) {
+  const parts = [entry.received ? 'Recebido' : 'Ainda não recebido'];
+  if (entry.tithe) parts.push('Dízimo');
+  if (entry.category) parts.push(entry.category);
+  return escapeHtml(parts.join(' · '));
 }
 
 export function escapeHtml(value) {

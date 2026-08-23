@@ -5,7 +5,7 @@
 //   * saveDraft()  — writes to this browser only, costs nothing, no commit.
 //   * the Save button (see app.js) — the only thing that commits to GitHub.
 
-import { isValidISO } from './dates.js';
+import { isValidISO, todayISO } from './dates.js';
 import { round2 } from './money.js';
 
 const CONFIG_KEY = 'incomeCalendar.config';
@@ -67,13 +67,18 @@ export function newId() {
 }
 
 export function makeEntry(partial = {}) {
+  const date = partial.date || '';
   return {
     id: partial.id || newId(),
-    date: partial.date || '',
+    date,
     source: partial.source || '',
     category: partial.category || '',
     gross: partial.gross == null ? null : round2(partial.gross),
     net: partial.net == null ? null : round2(partial.net),
+    // Unstated means "decide from the date": money dated today or earlier has
+    // normally arrived, money dated ahead is still expected. This is what makes
+    // entry files written before the flag existed read sensibly.
+    received: partial.received === undefined ? date <= todayISO() : partial.received === true,
     tithe: partial.tithe === true,
     notes: partial.notes || '',
   };
@@ -120,6 +125,7 @@ export function parseFile(text) {
       category: typeof item.category === 'string' ? item.category : '',
       gross: Number.isFinite(item.gross) ? item.gross : null,
       net: Number.isFinite(item.net) ? item.net : null,
+      received: typeof item.received === 'boolean' ? item.received : undefined,
       tithe: item.tithe === true,
       notes: typeof item.notes === 'string' ? item.notes : '',
     }));
@@ -138,6 +144,7 @@ export function serializeFile(entries) {
       category: e.category,
       gross: e.gross,
       net: e.net,
+      received: e.received,
       tithe: e.tithe,
       notes: e.notes,
     })),
@@ -157,7 +164,7 @@ export function sortEntries(entries) {
 // updatedAt stamp changes on every write and must not count as a change.
 function fingerprint(entries) {
   return JSON.stringify(sortEntries(entries)
-    .map((e) => [e.date, e.source, e.category, e.gross, e.net, e.tithe, e.notes]));
+    .map((e) => [e.date, e.source, e.category, e.gross, e.net, e.received, e.tithe, e.notes]));
 }
 
 /* ---------------- store ---------------- */

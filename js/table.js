@@ -81,7 +81,7 @@ export class TableView {
 
     this.bodyEl.innerHTML = rows.length
       ? rows.map((e) => this.row(e)).join('')
-      : `<tr class="empty-row"><td colspan="8">${this.emptyMessage()}</td></tr>`;
+      : `<tr class="empty-row"><td colspan="9">${this.emptyMessage()}</td></tr>`;
 
     this.renderTotals(rows);
   }
@@ -99,13 +99,14 @@ export class TableView {
 
   row(entry) {
     return `
-      <tr data-id="${entry.id}"${entry.tithe ? ' class="is-tithe"' : ''}>
+      <tr data-id="${entry.id}" class="${entry.tithe ? 'is-tithe ' : ''}${entry.received ? '' : 'is-pending'}">
         <td class="col-date"><input type="date" data-field="date" value="${entry.date}"></td>
         <td class="col-source"><input type="text" data-field="source" value="${escapeHtml(entry.source)}" placeholder="Source"></td>
         <td class="col-category"><input type="text" data-field="category" list="category-list" value="${escapeHtml(entry.category)}" placeholder="—"></td>
         <td class="col-amount"><input type="text" inputmode="decimal" data-field="gross" value="${toInputString(entry.gross, this.currency)}" placeholder="0,00"></td>
         <td class="col-amount"><input type="text" inputmode="decimal" data-field="net" value="${toInputString(entry.net, this.currency)}" placeholder="0,00"></td>
-        <td class="col-tithe"><input type="checkbox" data-field="tithe" title="Dízimo"${entry.tithe ? ' checked' : ''}></td>
+        <td class="col-flag col-received"><input type="checkbox" data-field="received" title="Já recebido?"${entry.received ? ' checked' : ''}></td>
+        <td class="col-flag col-tithe"><input type="checkbox" data-field="tithe" title="Dízimo"${entry.tithe ? ' checked' : ''}></td>
         <td class="col-notes"><input type="text" data-field="notes" value="${escapeHtml(entry.notes)}" placeholder="—"></td>
         <td class="col-del"><button type="button" class="row-del" data-action="delete" title="Delete entry">✕</button></td>
       </tr>`;
@@ -122,6 +123,9 @@ export class TableView {
     } else if (field === 'tithe') {
       this.store.update(id, { tithe: input.checked });
       input.closest('tr').classList.toggle('is-tithe', input.checked);
+    } else if (field === 'received') {
+      this.store.update(id, { received: input.checked });
+      input.closest('tr').classList.toggle('is-pending', !input.checked);
     } else if (field === 'source' || field === 'notes' || field === 'category') {
       this.store.update(id, { [field]: input.value });
     }

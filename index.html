@@ -98,18 +98,28 @@
           <span class="window-range muted" id="window-range"></span>
         </div>
       </div>
-      <div class="window-totals">
-        <div class="total-card">
-          <span class="total-label">Gross</span>
-          <span class="total-value" id="total-gross">—</span>
+    </div>
+
+    <div class="totals-hero">
+      <div class="hero-main">
+        <span class="hero-label">Net in this period</span>
+        <span class="hero-value" id="total-net">—</span>
+        <span class="hero-sub">
+          <span>Gross <b id="total-gross">—</b></span>
+          <span class="dot">·</span>
+          <span><b id="total-count">—</b> entries</span>
+        </span>
+      </div>
+      <div class="hero-split">
+        <div class="split-card received">
+          <span class="split-label">✓ Received</span>
+          <span class="split-value" id="total-received">—</span>
+          <span class="split-count" id="count-received">—</span>
         </div>
-        <div class="total-card net">
-          <span class="total-label">Net</span>
-          <span class="total-value" id="total-net">—</span>
-        </div>
-        <div class="total-card small">
-          <span class="total-label">Entries</span>
-          <span class="total-value" id="total-count">—</span>
+        <div class="split-card pending">
+          <span class="split-label">◷ Expected</span>
+          <span class="split-value" id="total-pending">—</span>
+          <span class="split-count" id="count-pending">—</span>
         </div>
       </div>
     </div>
@@ -152,7 +162,8 @@
               <th class="col-category">Category</th>
               <th class="col-amount">Gross</th>
               <th class="col-amount">Net</th>
-              <th class="col-tithe" title="Dízimo">Dízimo</th>
+              <th class="col-flag" title="Já recebido?">Recebido</th>
+              <th class="col-flag" title="Dízimo">Dízimo</th>
               <th class="col-notes">Notes</th>
               <th class="col-del"></th>
             </tr>
@@ -163,7 +174,7 @@
               <td colspan="3" class="foot-label">Shown total</td>
               <td class="col-amount" id="foot-gross">—</td>
               <td class="col-amount" id="foot-net">—</td>
-              <td colspan="3"></td>
+              <td colspan="4"></td>
             </tr>
           </tfoot>
         </table>
@@ -205,10 +216,16 @@
         <input id="day-net" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
       </label>
     </div>
-    <label class="checkbox-label">
-      <input id="day-tithe" type="checkbox">
-      <span>Dízimo</span>
-    </label>
+    <div class="two-col">
+      <label class="checkbox-label received">
+        <input id="day-received" type="checkbox">
+        <span>Recebido</span>
+      </label>
+      <label class="checkbox-label">
+        <input id="day-tithe" type="checkbox">
+        <span>Dízimo</span>
+      </label>
+    </div>
     <label>
       Notes
       <input id="day-notes" type="text" autocomplete="off" placeholder="optional">

@@ -413,6 +413,9 @@ function openDayDialog(iso) {
   el('day-category').value = categoryFilter && categoryFilter !== NO_CATEGORY ? categoryFilter : '';
   el('day-gross').value = '';
   el('day-net').value = '';
+  // Income dated today or earlier is normally already in hand; anything ahead is
+  // being planned. Either way the box is right there to change.
+  el('day-received').checked = iso <= todayISO();
   el('day-tithe').checked = false;
   el('day-notes').value = '';
   el('day-dialog').showModal();
@@ -434,6 +437,7 @@ function wireDayDialog() {
       category: el('day-category').value.trim(),
       gross: parseAmount(el('day-gross').value),
       net: parseAmount(el('day-net').value),
+      received: el('day-received').checked,
       tithe: el('day-tithe').checked,
       notes: el('day-notes').value.trim(),
     });
@@ -461,10 +465,18 @@ function renderSummary() {
   el('total-gross').textContent = formatAmount(result.gross, config.currency);
   el('total-net').textContent = formatAmount(result.net, config.currency);
   el('total-count').textContent = String(result.count);
+  el('total-received').textContent = formatAmount(result.receivedNet, config.currency);
+  el('total-pending').textContent = formatAmount(result.pendingNet, config.currency);
+  el('count-received').textContent = entryCount(result.receivedCount);
+  el('count-pending').textContent = entryCount(result.pendingCount);
 
   // The breakdown always covers the whole period, filter or not, so the pills
   // stay put and the active one can be clicked again to clear the filter.
   renderBreakdown(computeRange(store, range.from, range.to, '').entries);
+}
+
+function entryCount(n) {
+  return `${n} ${n === 1 ? 'entry' : 'entries'}`;
 }
 
 // Net per category for the chosen period. Hidden when there is nothing to

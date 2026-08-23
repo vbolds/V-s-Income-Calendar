@@ -222,21 +222,64 @@ label.inline select { max-width: 170px; }
 .cat-net { color: var(--net); font-weight: 700; font-variant-numeric: tabular-nums; }
 .cat-count { color: var(--muted); font-size: 11px; }
 
-.window-totals { display: flex; gap: 10px; flex-wrap: wrap; }
+/* The headline: what this period is worth, centred and unmissable. */
 
-.total-card {
-  background: var(--surface-2);
+.totals-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 20px 18px 22px;
+  background: linear-gradient(180deg, var(--net-soft), transparent 140%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.hero-main { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+.hero-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+
+.hero-value {
+  font-size: clamp(30px, 5vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--net);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-sub { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.hero-sub b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.hero-sub .dot { opacity: 0.5; }
+
+.hero-split { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+.split-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 148px;
+  padding: 9px 18px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 8px 16px;
-  min-width: 130px;
+  background: var(--surface);
 }
-.total-card.net { background: var(--net-soft); border-color: transparent; }
-.total-card.small { min-width: 80px; }
+.split-card.received { border-color: color-mix(in srgb, var(--net) 40%, transparent); }
+.split-card.pending { border-style: dashed; }
 
-.total-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-.total-value { display: block; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
-.total-card.net .total-value { color: var(--net); }
+.split-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.split-value { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.split-card.received .split-value { color: var(--net); }
+.split-card.pending .split-value { color: var(--muted); }
+.split-count { font-size: 11px; color: var(--muted); }
 
 /* ---------------- workspace ---------------- */
 
@@ -346,6 +389,16 @@ label.inline select { max-width: 170px; }
 .chip.more { background: transparent; color: var(--muted); padding: 1px 4px; }
 .chip:hover { outline: 1px solid var(--net); }
 
+/* Not received yet: hollow and dashed, so planned income never reads as money
+   already in hand. Drawn with outline, which costs no layout width. */
+.chip.pending {
+  background: transparent;
+  outline: 1px dashed var(--muted);
+  outline-offset: -1px;
+}
+.chip.pending b { color: var(--muted); }
+.chip:hover { outline: 1.5px solid var(--accent); outline-offset: -1px; }
+
 /* Dízimo: a stronger green border marks the flagged entries at a glance. Drawn
    as an inset shadow so it takes no width away from the amount inside. */
 .chip.tithe {
@@ -387,20 +440,26 @@ label.inline select { max-width: 170px; }
 .entries-table input:hover { border-color: var(--border); }
 .entries-table input:focus { background: var(--surface); }
 
-.entries-table { min-width: 660px; }
+.entries-table { min-width: 700px; }
 
 .col-amount { text-align: right; min-width: 76px; }
 .col-amount input { text-align: right; font-variant-numeric: tabular-nums; }
-.col-date { width: 132px; }
-.col-source { min-width: 104px; }
-.col-category { min-width: 104px; }
-.col-notes { min-width: 76px; }
-.col-tithe { width: 56px; text-align: center; }
-.col-tithe input { width: 16px; height: 16px; accent-color: var(--tithe); cursor: pointer; }
+.col-date { width: 126px; }
+.col-source { min-width: 100px; }
+.col-category { min-width: 100px; }
+.col-notes { min-width: 70px; }
+.col-flag { width: 62px; text-align: center; }
+.col-flag input { width: 16px; height: 16px; cursor: pointer; }
+.col-tithe input { accent-color: var(--tithe); }
+.col-received input { accent-color: var(--net); }
 .col-del { width: 30px; }
 
 /* A flagged row gets the same green cue as its calendar chip. */
 tr.is-tithe .col-tithe { box-shadow: inset 2px 0 0 var(--tithe), inset -2px 0 0 var(--tithe); }
+
+/* Not received yet: the amounts read as a projection, not as cash. */
+tr.is-pending .col-amount input,
+tr.is-pending .col-source input { font-style: italic; color: var(--muted); }
 
 .row-del {
   background: transparent;
@@ -500,7 +559,9 @@ tr.is-tithe .col-tithe { box-shadow: inset 2px 0 0 var(--tithe), inset -2px 0 0 
   .table-scroll { max-height: none; }
   .window-top { flex-direction: column; align-items: stretch; gap: 12px; }
   .category-breakdown { margin-top: 10px; padding-top: 10px; }
-  .window-totals { display: grid; grid-template-columns: 1fr 1fr auto; }
+  .totals-hero { padding: 16px 12px 18px; gap: 12px; }
+  .hero-split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  .split-card { min-width: 0; padding: 8px 12px; align-items: center; }
   .range-row { gap: 8px; }
   .range-row label.inline { flex: 1 1 140px; }
   .range-row label.inline input, .range-row label.inline select { flex: 1; min-width: 0; max-width: none; }
