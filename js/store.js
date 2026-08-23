@@ -71,10 +71,22 @@ export function makeEntry(partial = {}) {
     id: partial.id || newId(),
     date: partial.date || '',
     source: partial.source || '',
+    category: partial.category || '',
     gross: partial.gross == null ? null : round2(partial.gross),
     net: partial.net == null ? null : round2(partial.net),
+    tithe: partial.tithe === true,
     notes: partial.notes || '',
   };
+}
+
+// Every category currently in use, for the filter dropdown and the type-ahead
+// suggestions, so categories never need a management screen of their own.
+export function categoriesOf(entries) {
+  const names = new Set();
+  for (const entry of entries) {
+    if (entry.category) names.add(entry.category);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b));
 }
 
 // Entries with a bad shape are dropped rather than allowed to break the views;
@@ -99,12 +111,16 @@ export function parseFile(text) {
       dropped += 1;
       continue;
     }
+    // Files written before categories and the tithe flag existed simply have
+    // those fields missing, and default cleanly.
     entries.push(makeEntry({
       id: typeof item.id === 'string' ? item.id : undefined,
       date: item.date,
       source: typeof item.source === 'string' ? item.source : '',
+      category: typeof item.category === 'string' ? item.category : '',
       gross: Number.isFinite(item.gross) ? item.gross : null,
       net: Number.isFinite(item.net) ? item.net : null,
+      tithe: item.tithe === true,
       notes: typeof item.notes === 'string' ? item.notes : '',
     }));
   }
@@ -119,8 +135,10 @@ export function serializeFile(entries) {
       id: e.id,
       date: e.date,
       source: e.source,
+      category: e.category,
       gross: e.gross,
       net: e.net,
+      tithe: e.tithe,
       notes: e.notes,
     })),
   };
@@ -138,7 +156,8 @@ export function sortEntries(entries) {
 // Only the entries decide whether there is something to save — the file's
 // updatedAt stamp changes on every write and must not count as a change.
 function fingerprint(entries) {
-  return JSON.stringify(sortEntries(entries).map((e) => [e.date, e.source, e.gross, e.net, e.notes]));
+  return JSON.stringify(sortEntries(entries)
+    .map((e) => [e.date, e.source, e.category, e.gross, e.net, e.tithe, e.notes]));
 }
 
 /* ---------------- store ---------------- */

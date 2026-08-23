@@ -7,9 +7,13 @@ any browser — Mac, Windows, phone — and that keeps every change forever.
   payment history or forward to plan what is coming.
 - **Table view** — the same entries as a spreadsheet, side by side with the
   calendar. Edit in either one; both always show the same data.
-- **"How much did I make in the month ending on…"** — pick any date and get the
-  gross and net totals for the month that ends on it (e.g. August 2nd shows
-  July 2nd → August 2nd, both days counted).
+- **Any period you like** — pick a first day and a last day, both counted, and
+  get the gross and net totals for it. Presets cover the common ones, including
+  *Month back* (e.g. last day August 2nd → July 2nd to August 2nd).
+- **Categories** — tag each income and filter the totals by category, with a
+  per-category breakdown of the chosen period.
+- **Dízimo** — flag any income as tithe; flagged entries get a strong green
+  outline on the calendar.
 - **Save button** — edit as much as you like; pressing Save writes everything to
   GitHub as a single commit. Unsaved edits are kept safe in your browser in the
   meantime.
@@ -104,14 +108,29 @@ stored in that browser only and never leaves it except to talk to github.com.
 
 **Add income** — click any day on the calendar, or press **+ Add entry** in the
 table. Several incomes can land on the same day; each is its own entry.
+<kbd>Enter</kbd> in the dialog adds the entry.
 
 **Edit fast** — the table is built for speed: type straight into any cell, and
 press <kbd>Enter</kbd> to jump down the same column. Amounts accept whatever you
 type: `1.234,56`, `1234.56`, or `1000`.
 
-**See a month's income** — set *"Show the month ending on"* to the date you care
-about. The totals show gross and net for that whole window, and the calendar
-highlights the days it covers.
+**Categories** — type a category on any entry; it is remembered and suggested
+the next time. Filter by one with the **Category** dropdown, or by clicking a
+category in the breakdown strip (click it again to clear). The filter narrows
+both the totals and the table.
+
+**Dízimo** — tick the box on an entry, in the dialog or in the table's *Dízimo*
+column. Flagged entries get a strong green outline on their calendar chip.
+
+**See a period's income** — set **From** and **To**; both days are counted. The
+totals show gross and net for that period, the calendar highlights the days it
+covers, and the breakdown strip shows the net per category. The presets are:
+
+| Preset | What it does |
+| --- | --- |
+| **Month back** | Keeps the last day, sets the first day one month earlier |
+| **This month** | The current calendar month, 1st to last day |
+| **This year** | January 1st to December 31st |
 
 **Save** — nothing reaches GitHub until you press **Save**
 (<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>S</kbd> also works). One press = one
@@ -125,11 +144,13 @@ the app. Drafts are local only and never create commits.
 
 ## Good to know
 
-- **The window is inclusive on both ends.** "Ending August 2nd" counts income on
-  July 2nd *and* on August 2nd. If you check two months back to back, a payment
-  landing exactly on a boundary day is counted in both.
-- **Short months clamp.** "Ending March 31st" starts on February 28th (or 29th),
-  because February has no 31st.
+- **The period is inclusive on both ends.** From July 2nd to August 2nd counts
+  income on July 2nd *and* on August 2nd. If you check two periods back to back,
+  a payment landing exactly on a shared boundary day is counted in both.
+- **Short months clamp.** *Month back* from March 31st starts on February 28th
+  (or 29th), because February has no 31st.
+- **Categories are free text.** There is no list to maintain: type a new one and
+  it joins the suggestions; stop using it and it disappears on its own.
 - **Editing from two devices at once.** If the file changed on GitHub since the
   page loaded, GitHub refuses the write and the app asks whether to overwrite or
   reload — nothing is silently lost.
@@ -150,13 +171,18 @@ the app. Drafts are local only and never create commits.
       "id": "9f0c…",
       "date": "2026-08-05",
       "source": "Salary",
+      "category": "Employment",
       "gross": 8000,
       "net": 6400,
+      "tithe": true,
       "notes": ""
     }
   ]
 }
 ```
+
+Files written before categories and the tithe flag existed still load fine —
+those fields simply default to empty and `false`.
 
 Expenses are not part of this version. When they are added, they will slot into
 the same file as entries with a type, so this history stays intact.

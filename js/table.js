@@ -4,6 +4,7 @@
 import { escapeHtml } from './calendar.js';
 import { isValidISO } from './dates.js';
 import { formatAmount, parseAmount, sum, toInputString } from './money.js';
+import { matchesCategory } from './summary.js';
 
 export class TableView {
   constructor({ bodyEl, filterEl, footGrossEl, footNetEl, store, onChange }) {
@@ -15,6 +16,7 @@ export class TableView {
     this.onChange = onChange || (() => {});
     this.currency = 'BRL';
     this.filter = '';
+    this.categoryFilter = '';
     this.pendingRender = false;
     this.renderQueued = false;
 
@@ -46,11 +48,17 @@ export class TableView {
     return this.bodyEl.contains(document.activeElement);
   }
 
+  // The category dropdown in the summary panel narrows this table too, so the
+  // numbers on screen always belong to the same set of entries.
+  setCategoryFilter(category) {
+    this.categoryFilter = category;
+  }
+
   visibleEntries() {
-    if (!this.filter) return this.store.entries;
     return this.store.entries.filter((e) => {
-      const haystack = `${e.date} ${e.source} ${e.notes}`.toLowerCase();
-      return haystack.includes(this.filter);
+      if (!matchesCategory(e, this.categoryFilter)) return false;
+      if (!this.filter) return true;
+      return `${e.date} ${e.source} ${e.category} ${e.notes}`.toLowerCase().includes(this.filter);
     });
   }
 
@@ -73,9 +81,15 @@ export class TableView {
 
     this.bodyEl.innerHTML = rows.length
       ? rows.map((e) => this.row(e)).join('')
-      : `<tr class="empty-row"><td colspan="6">No entries yet — click a day on the calendar, or press “+ Add entry”.</td></tr>`;
+      : `<tr class="empty-row"><td colspan="8">${this.emptyMessage()}</td></tr>`;
 
     this.renderTotals(rows);
+  }
+
+  // Distinguishes "nothing recorded yet" from "the filters hide everything".
+  emptyMessage() {
+    if (this.store.entries.length) return 'No entries match the current filters.';
+    return 'No entries yet — click a day on the calendar, or press “+ Add entry”.';
   }
 
   renderTotals(rows = this.visibleEntries()) {
@@ -85,11 +99,13 @@ export class TableView {
 
   row(entry) {
     return `
-      <tr data-id="${entry.id}">
+      <tr data-id="${entry.id}"${entry.tithe ? ' class="is-tithe"' : ''}>
         <td class="col-date"><input type="date" data-field="date" value="${entry.date}"></td>
         <td class="col-source"><input type="text" data-field="source" value="${escapeHtml(entry.source)}" placeholder="Source"></td>
+        <td class="col-category"><input type="text" data-field="category" list="category-list" value="${escapeHtml(entry.category)}" placeholder="—"></td>
         <td class="col-amount"><input type="text" inputmode="decimal" data-field="gross" value="${toInputString(entry.gross, this.currency)}" placeholder="0,00"></td>
         <td class="col-amount"><input type="text" inputmode="decimal" data-field="net" value="${toInputString(entry.net, this.currency)}" placeholder="0,00"></td>
+        <td class="col-tithe"><input type="checkbox" data-field="tithe" title="Dízimo"${entry.tithe ? ' checked' : ''}></td>
         <td class="col-notes"><input type="text" data-field="notes" value="${escapeHtml(entry.notes)}" placeholder="—"></td>
         <td class="col-del"><button type="button" class="row-del" data-action="delete" title="Delete entry">✕</button></td>
       </tr>`;
@@ -103,7 +119,10 @@ export class TableView {
 
     if (field === 'gross' || field === 'net') {
       this.store.update(id, { [field]: parseAmount(input.value) });
-    } else if (field === 'source' || field === 'notes') {
+    } else if (field === 'tithe') {
+      this.store.update(id, { tithe: input.checked });
+      input.closest('tr').classList.toggle('is-tithe', input.checked);
+    } else if (field === 'source' || field === 'notes' || field === 'category') {
       this.store.update(id, { [field]: input.value });
     }
     this.onChange();

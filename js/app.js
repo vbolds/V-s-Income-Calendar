@@ -1,12 +1,13 @@
 // Wiring: connection setup, loading from GitHub, the two synced views, the
 // rolling-window summary, local draft autosave, and the one-commit Save button.
 
-import { CalendarView } from './calendar.js';
-import { MONTH_NAMES, formatLong, todayISO } from './dates.js';
+import { CalendarView, escapeHtml } from './calendar.js';
+import { MONTH_NAMES, addMonths, formatLong, todayISO } from './dates.js';
 import { GitHubError, getFile, putFile, verifyAccess } from './github.js';
 import { formatAmount, parseAmount } from './money.js';
 import {
   Store,
+  categoriesOf,
   clearCredentials,
   clearDraft,
   draftDiffers,
@@ -21,7 +22,14 @@ import {
   serializeFile,
   sortEntries,
 } from './store.js';
-import { computeWindow, describeRange, windowRange } from './summary.js';
+import {
+  NO_CATEGORY,
+  NO_CATEGORY_LABEL,
+  breakdownByCategory,
+  computeRange,
+  describeRange,
+  presetRange,
+} from './summary.js';
 import { TableView } from './table.js';
 
 const DRAFT_DEBOUNCE_MS = 800;
@@ -33,7 +41,8 @@ let config = loadConfig();
 let token = loadToken();
 let calendar;
 let table;
-let anchorDate = todayISO();
+let range = { from: addMonths(todayISO(), -1), to: todayISO() };
+let categoryFilter = '';
 let draftTimer = null;
 let saving = false;
 
@@ -84,7 +93,8 @@ function showApp() {
 
   calendar.setCurrency(config.currency);
   table.setCurrency(config.currency);
-  el('anchor-date').value = anchorDate;
+  table.setCategoryFilter(categoryFilter);
+  syncRangeInputs();
   syncMonthControls();
   renderAll();
 }
@@ -301,13 +311,24 @@ function wireApp() {
     else el('year-input').value = calendar.year;
   });
 
-  el('anchor-date').addEventListener('change', () => {
-    if (!el('anchor-date').value) {
-      el('anchor-date').value = anchorDate;
-      return;
-    }
-    anchorDate = el('anchor-date').value;
-    renderAll();
+  el('range-from').addEventListener('change', () => applyRangeInput('from'));
+  el('range-to').addEventListener('change', () => applyRangeInput('to'));
+
+  for (const button of document.querySelectorAll('[data-preset]')) {
+    button.addEventListener('click', () => {
+      range = presetRange(button.dataset.preset, range);
+      syncRangeInputs();
+      renderAll();
+    });
+  }
+
+  el('category-filter').addEventListener('change', () => setCategoryFilter(el('category-filter').value));
+
+  // Clicking a category in the breakdown filters by it; clicking it again clears.
+  el('category-breakdown').addEventListener('click', (event) => {
+    const pill = event.target.closest('[data-category]');
+    if (!pill) return;
+    setCategoryFilter(pill.dataset.category === categoryFilter ? '' : pill.dataset.category);
   });
 
   el('add-row-btn').addEventListener('click', () => {
@@ -330,6 +351,35 @@ function wireApp() {
       save();
     }
   });
+}
+
+function setCategoryFilter(category) {
+  categoryFilter = category;
+  table.setCategoryFilter(category);
+  table.render();
+  renderAll();
+}
+
+// Keeps the two dates in order: dragging one past the other pushes the other
+// along, the way a date-range picker behaves, instead of showing a broken range.
+function applyRangeInput(which) {
+  const input = el(which === 'from' ? 'range-from' : 'range-to');
+  if (!input.value) {
+    syncRangeInputs();
+    return;
+  }
+  range = { ...range, [which]: input.value };
+  if (range.from > range.to) {
+    if (which === 'from') range.to = range.from;
+    else range.from = range.to;
+  }
+  syncRangeInputs();
+  renderAll();
+}
+
+function syncRangeInputs() {
+  el('range-from').value = range.from;
+  el('range-to').value = range.to;
 }
 
 function buildMonthOptions() {
@@ -360,8 +410,10 @@ function openDayDialog(iso) {
   el('day-dialog-title').textContent = `Add income — ${formatLong(iso)}`;
   el('day-date').value = iso;
   el('day-source').value = '';
+  el('day-category').value = categoryFilter && categoryFilter !== NO_CATEGORY ? categoryFilter : '';
   el('day-gross').value = '';
   el('day-net').value = '';
+  el('day-tithe').checked = false;
   el('day-notes').value = '';
   el('day-dialog').showModal();
   // Focus synchronously: a deferred focus() would jump the caret out of whatever
@@ -379,8 +431,10 @@ function wireDayDialog() {
     const entry = store.add({
       date,
       source: el('day-source').value.trim(),
+      category: el('day-category').value.trim(),
       gross: parseAmount(el('day-gross').value),
       net: parseAmount(el('day-net').value),
+      tithe: el('day-tithe').checked,
       notes: el('day-notes').value.trim(),
     });
     table.render();
@@ -391,22 +445,77 @@ function wireDayDialog() {
 /* ---------------- rendering ---------------- */
 
 function renderAll() {
-  const range = windowRange(anchorDate);
-  calendar.setWindow(range);
+  calendar.setWindow({ start: range.from, end: range.to });
   calendar.setCurrency(config.currency);
   table.setCurrency(config.currency);
   calendar.render();
   table.requestRender();
+  renderCategoryOptions();
   renderSummary();
   updateSaveStatus();
 }
 
 function renderSummary() {
-  const result = computeWindow(store, anchorDate);
+  const result = computeRange(store, range.from, range.to, categoryFilter);
   el('window-range').textContent = describeRange(result);
   el('total-gross').textContent = formatAmount(result.gross, config.currency);
   el('total-net').textContent = formatAmount(result.net, config.currency);
   el('total-count').textContent = String(result.count);
+
+  // The breakdown always covers the whole period, filter or not, so the pills
+  // stay put and the active one can be clicked again to clear the filter.
+  renderBreakdown(computeRange(store, range.from, range.to, '').entries);
+}
+
+// Net per category for the chosen period. Hidden when there is nothing to
+// compare — a single category tells you no more than the totals above already do.
+function renderBreakdown(entries) {
+  const box = el('category-breakdown');
+  const groups = breakdownByCategory(entries);
+
+  if (groups.length < 2 && !categoryFilter) {
+    box.innerHTML = '';
+    box.classList.add('hidden');
+    return;
+  }
+
+  box.classList.remove('hidden');
+  box.innerHTML = groups.map((group) => {
+    const value = group.category || NO_CATEGORY;
+    const active = value === categoryFilter;
+    return `
+      <button type="button" class="cat-pill${active ? ' active' : ''}" data-category="${escapeHtml(value)}"
+        title="${active ? 'Click to clear this filter' : 'Click to show only this category'}">
+        <span class="cat-name">${escapeHtml(group.category || NO_CATEGORY_LABEL)}</span>
+        <span class="cat-net">${formatAmount(group.net, config.currency)}</span>
+        <span class="cat-count">${group.count}</span>
+      </button>`;
+  }).join('');
+}
+
+// The dropdown lists every category in use, plus whichever one is selected even
+// if the last entry using it was just deleted, so the filter never resets itself.
+function renderCategoryOptions() {
+  const names = categoriesOf(store.entries);
+  const hasUncategorised = store.entries.some((e) => !e.category);
+  const options = ['<option value="">All categories</option>'];
+
+  for (const name of names) {
+    options.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+  }
+  if (hasUncategorised) options.push(`<option value="${NO_CATEGORY}">${NO_CATEGORY_LABEL}</option>`);
+  if (categoryFilter && categoryFilter !== NO_CATEGORY && !names.includes(categoryFilter)) {
+    options.push(`<option value="${escapeHtml(categoryFilter)}">${escapeHtml(categoryFilter)}</option>`);
+  }
+
+  const select = el('category-filter');
+  const markup = options.join('');
+  if (select.innerHTML !== markup) select.innerHTML = markup;
+  select.value = categoryFilter;
+
+  el('category-list').innerHTML = names
+    .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+    .join('');
 }
 
 function updateSaveStatus() {

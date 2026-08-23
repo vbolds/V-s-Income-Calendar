@@ -110,7 +110,7 @@ export class CalendarView {
     let body = '';
     if (entries.length) {
       const chips = entries.slice(0, MAX_CHIPS).map((e) => `
-        <span class="chip" data-entry-id="${e.id}">
+        <span class="chip${e.tithe ? ' tithe' : ''}" data-entry-id="${e.id}"${e.tithe ? ' title="Dízimo"' : ''}>
           <em>${escapeHtml(e.source || 'Income')}</em>
           <b>${formatCompact(e.net ?? e.gross ?? 0, this.currency)}</b>
         </span>`).join('');

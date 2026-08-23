@@ -73,29 +73,47 @@
     </div>
   </header>
 
-  <!-- Rolling window summary -->
+  <!-- Period summary -->
   <section class="window-panel">
-    <div class="window-controls">
-      <label class="inline">
-        Show the month ending on
-        <input id="anchor-date" type="date">
-      </label>
-      <div class="window-range muted" id="window-range"></div>
+    <div class="window-top">
+      <div class="window-controls">
+        <div class="range-row">
+          <label class="inline">
+            From
+            <input id="range-from" type="date">
+          </label>
+          <label class="inline">
+            To
+            <input id="range-to" type="date">
+          </label>
+          <label class="inline">
+            Category
+            <select id="category-filter"><option value="">All</option></select>
+          </label>
+        </div>
+        <div class="preset-row">
+          <button type="button" class="ghost small-btn" data-preset="month-back">Month back</button>
+          <button type="button" class="ghost small-btn" data-preset="this-month">This month</button>
+          <button type="button" class="ghost small-btn" data-preset="this-year">This year</button>
+          <span class="window-range muted" id="window-range"></span>
+        </div>
+      </div>
+      <div class="window-totals">
+        <div class="total-card">
+          <span class="total-label">Gross</span>
+          <span class="total-value" id="total-gross">—</span>
+        </div>
+        <div class="total-card net">
+          <span class="total-label">Net</span>
+          <span class="total-value" id="total-net">—</span>
+        </div>
+        <div class="total-card small">
+          <span class="total-label">Entries</span>
+          <span class="total-value" id="total-count">—</span>
+        </div>
+      </div>
     </div>
-    <div class="window-totals">
-      <div class="total-card">
-        <span class="total-label">Gross</span>
-        <span class="total-value" id="total-gross">—</span>
-      </div>
-      <div class="total-card net">
-        <span class="total-label">Net</span>
-        <span class="total-value" id="total-net">—</span>
-      </div>
-      <div class="total-card small">
-        <span class="total-label">Entries</span>
-        <span class="total-value" id="total-count">—</span>
-      </div>
-    </div>
+    <div class="category-breakdown" id="category-breakdown"></div>
   </section>
 
   <main class="workspace">
@@ -131,8 +149,10 @@
             <tr>
               <th class="col-date">Date</th>
               <th class="col-source">Source</th>
+              <th class="col-category">Category</th>
               <th class="col-amount">Gross</th>
               <th class="col-amount">Net</th>
+              <th class="col-tithe" title="Dízimo">Dízimo</th>
               <th class="col-notes">Notes</th>
               <th class="col-del"></th>
             </tr>
@@ -140,10 +160,10 @@
           <tbody id="entries-body"></tbody>
           <tfoot>
             <tr>
-              <td colspan="2" class="foot-label">Shown total</td>
+              <td colspan="3" class="foot-label">Shown total</td>
               <td class="col-amount" id="foot-gross">—</td>
               <td class="col-amount" id="foot-net">—</td>
-              <td colspan="2"></td>
+              <td colspan="3"></td>
             </tr>
           </tfoot>
         </table>
@@ -155,6 +175,9 @@
 
   <div id="toast" class="toast hidden"></div>
 </section>
+
+<!-- Category suggestions, shared by the table and the day dialog -->
+<datalist id="category-list"></datalist>
 
 <!-- Day editor dialog -->
 <dialog id="day-dialog">
@@ -168,6 +191,10 @@
       Source
       <input id="day-source" type="text" placeholder="Salary, freelance, dividend…" autocomplete="off">
     </label>
+    <label>
+      Category
+      <input id="day-category" type="text" list="category-list" autocomplete="off" placeholder="Type a new one or pick an existing">
+    </label>
     <div class="two-col">
       <label>
         Gross
@@ -178,6 +205,10 @@
         <input id="day-net" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
       </label>
     </div>
+    <label class="checkbox-label">
+      <input id="day-tithe" type="checkbox">
+      <span>Dízimo</span>
+    </label>
     <label>
       Notes
       <input id="day-notes" type="text" autocomplete="off" placeholder="optional">

@@ -9,6 +9,8 @@
   --accent-soft: #e8effd;
   --net: #0f7b52;
   --net-soft: #e4f4ec;
+  --tithe: #0a6b3d;
+  --tithe-soft: #d3efdf;
   --warn: #9a6400;
   --warn-soft: #fdf3dc;
   --error: #b42318;
@@ -30,6 +32,8 @@
     --accent-soft: #1e2a44;
     --net: #46c191;
     --net-soft: #16332a;
+    --tithe: #5fe0a8;
+    --tithe-soft: #12402d;
     --warn: #e0b050;
     --warn-soft: #3a2f14;
     --error: #f0837a;
@@ -165,20 +169,58 @@ input:focus, select:focus {
 /* ---------------- rolling window panel ---------------- */
 
 .window-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  flex-wrap: wrap;
   padding: 14px 18px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
-.window-controls { display: flex; flex-direction: column; gap: 4px; }
+.window-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.window-controls { display: flex; flex-direction: column; gap: 8px; }
+.range-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.preset-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 label.inline { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
-label.inline input { font-weight: 400; }
-.window-range { font-size: 12.5px; }
+label.inline input, label.inline select { font-weight: 400; }
+label.inline select { max-width: 170px; }
+.window-range { font-size: 12.5px; margin-left: 6px; }
+
+/* category breakdown */
+
+.category-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.cat-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  color: inherit;
+  font-size: 12.5px;
+}
+.cat-pill:hover { border-color: var(--accent); background: var(--accent-soft); }
+.cat-pill.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.cat-name { font-weight: 600; }
+.cat-net { color: var(--net); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cat-count { color: var(--muted); font-size: 11px; }
 
 .window-totals { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -200,7 +242,7 @@ label.inline input { font-weight: 400; }
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
   gap: 16px;
   padding: 16px 18px 28px;
   align-items: start;
@@ -304,6 +346,14 @@ label.inline input { font-weight: 400; }
 .chip.more { background: transparent; color: var(--muted); padding: 1px 4px; }
 .chip:hover { outline: 1px solid var(--net); }
 
+/* Dízimo: a stronger green border marks the flagged entries at a glance. Drawn
+   as an inset shadow so it takes no width away from the amount inside. */
+.chip.tithe {
+  box-shadow: inset 0 0 0 1.5px var(--tithe);
+  background: var(--tithe-soft);
+}
+.chip.tithe b { color: var(--tithe); }
+
 .day-total {
   margin-top: auto;
   text-align: right;
@@ -337,10 +387,20 @@ label.inline input { font-weight: 400; }
 .entries-table input:hover { border-color: var(--border); }
 .entries-table input:focus { background: var(--surface); }
 
-.col-amount { text-align: right; }
+.entries-table { min-width: 660px; }
+
+.col-amount { text-align: right; min-width: 76px; }
 .col-amount input { text-align: right; font-variant-numeric: tabular-nums; }
-.col-date { width: 140px; }
+.col-date { width: 132px; }
+.col-source { min-width: 104px; }
+.col-category { min-width: 104px; }
+.col-notes { min-width: 76px; }
+.col-tithe { width: 56px; text-align: center; }
+.col-tithe input { width: 16px; height: 16px; accent-color: var(--tithe); cursor: pointer; }
 .col-del { width: 30px; }
+
+/* A flagged row gets the same green cue as its calendar chip. */
+tr.is-tithe .col-tithe { box-shadow: inset 2px 0 0 var(--tithe), inset -2px 0 0 var(--tithe); }
 
 .row-del {
   background: transparent;
@@ -384,6 +444,31 @@ label.inline input { font-weight: 400; }
 .day-dialog-inner label { display: block; margin-bottom: 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .day-dialog-inner label input { display: block; width: 100%; margin-top: 4px; font-weight: 400; color: var(--text); }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.day-dialog-inner label.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+}
+.day-dialog-inner label.checkbox-label:hover { border-color: var(--tithe); }
+.day-dialog-inner label.checkbox-label input {
+  display: inline-block;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--tithe);
+  cursor: pointer;
+}
+.day-dialog-inner label.checkbox-label:has(input:checked) {
+  border-color: var(--tithe);
+  background: var(--tithe-soft);
+}
 .day-dialog-inner menu { display: flex; justify-content: flex-end; gap: 8px; margin: 18px 0 0; padding: 0; }
 
 /* ---------------- toast ---------------- */
@@ -413,8 +498,13 @@ label.inline input { font-weight: 400; }
 @media (max-width: 900px) {
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .table-scroll { max-height: none; }
-  .window-panel { flex-direction: column; align-items: stretch; }
-  .total-card { flex: 1; }
+  .window-top { flex-direction: column; align-items: stretch; gap: 12px; }
+  .category-breakdown { margin-top: 10px; padding-top: 10px; }
+  .window-totals { display: grid; grid-template-columns: 1fr 1fr auto; }
+  .range-row { gap: 8px; }
+  .range-row label.inline { flex: 1 1 140px; }
+  .range-row label.inline input, .range-row label.inline select { flex: 1; min-width: 0; max-width: none; }
+  .window-range { flex-basis: 100%; margin-left: 0; }
   .day { min-height: 62px; padding: 4px 3px; }
   .chip { padding: 1px 3px; }
   .chip em { display: none; }
