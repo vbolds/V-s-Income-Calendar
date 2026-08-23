@@ -183,7 +183,9 @@
       <input id="day-notes" type="text" autocomplete="off" placeholder="optional">
     </label>
     <menu>
-      <button value="cancel" class="ghost">Cancel</button>
+      <!-- type="button" keeps Cancel out of the way: the first submit button in a
+           form is the one Enter activates, and that has to be "Add entry". -->
+      <button type="button" id="day-cancel" class="ghost">Cancel</button>
       <button id="day-save" value="save" class="primary">Add entry</button>
     </menu>
   </form>

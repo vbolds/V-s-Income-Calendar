@@ -371,6 +371,7 @@ function openDayDialog(iso) {
 
 function wireDayDialog() {
   const dialog = el('day-dialog');
+  el('day-cancel').addEventListener('click', () => dialog.close('cancel'));
   dialog.addEventListener('close', () => {
     if (dialog.returnValue !== 'save') return;
     const date = el('day-date').value;
