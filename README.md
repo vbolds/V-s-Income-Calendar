@@ -11,7 +11,8 @@ any browser — Mac, Windows, phone — and that keeps every change forever.
   get the gross and net totals for it. Presets cover the common ones, including
   *Month back* (e.g. last day August 2nd → July 2nd to August 2nd).
 - **Received vs expected** — plan income for months ahead and flag each one as
-  **Recebido** once it actually lands. The totals show both, split apart.
+  **Recebido** once it actually lands. The totals show both, split apart, and
+  either one can be clicked to show just those entries.
 - **Categories** — tag each income and filter the totals by category, with a
   per-category breakdown of the chosen period.
 - **Dízimo** — flag any income as tithe; flagged entries get a strong green
@@ -127,12 +128,28 @@ italics in the table, so a plan never looks like cash in hand. New entries start
 ticked when dated today or earlier, unticked when dated ahead.
 
 **Dízimo** — tick the box on an entry, in the dialog or in the table's *Dízimo*
-column. Flagged entries get a strong green outline on their calendar chip.
+column. Flagged entries get a strong green outline on their calendar chip, and
+their total for the period is one of the three headline cards. An entry that is
+flagged but not received yet stays hollow: the outline marks the flag, the hollow
+fill still says the money has not arrived.
 
 **See a period's income** — set **From** and **To**; both days are counted. The
-headline is the net for that period, split into **Received** (money in hand) and
-**Expected** (still to come). The calendar highlights the days the period covers,
-and the breakdown strip shows the net per category. The presets are:
+headline is the net for that period, with three figures under it:
+
+| Card | What it totals |
+| --- | --- |
+| **✓ Received** | Net already in hand |
+| **◷ Expected** | Net still to come |
+| **◈ Dízimo** | Net of everything flagged for dízimo |
+
+**Click any of the three** to show only those entries — the headline, the table
+and the category breakdown all follow it, and the card reads as pressed. Click it
+again to go back to everything. The three cards keep showing their own totals
+while a filter is on, so you can click straight from one to another. Category and
+card filters combine.
+
+The calendar highlights the days the period covers, and the breakdown strip shows
+the net per category. The presets are:
 
 | Preset | What it does |
 | --- | --- |

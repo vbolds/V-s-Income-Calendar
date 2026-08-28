@@ -43,6 +43,7 @@ let calendar;
 let table;
 let range = { from: addMonths(todayISO(), -1), to: todayISO() };
 let categoryFilter = '';
+let flagFilter = '';
 let draftTimer = null;
 let saving = false;
 
@@ -331,6 +332,13 @@ function wireApp() {
     setCategoryFilter(pill.dataset.category === categoryFilter ? '' : pill.dataset.category);
   });
 
+  // Same for the three headline cards: Received, Expected and Dízimo.
+  for (const card of document.querySelectorAll('[data-flag]')) {
+    card.addEventListener('click', () => {
+      setFlagFilter(card.dataset.flag === flagFilter ? '' : card.dataset.flag);
+    });
+  }
+
   el('add-row-btn').addEventListener('click', () => {
     const entry = store.add({ date: todayISO() });
     table.render();
@@ -356,6 +364,13 @@ function wireApp() {
 function setCategoryFilter(category) {
   categoryFilter = category;
   table.setCategoryFilter(category);
+  table.render();
+  renderAll();
+}
+
+function setFlagFilter(flag) {
+  flagFilter = flag;
+  table.setFlagFilter(flag);
   table.render();
   renderAll();
 }
@@ -459,20 +474,39 @@ function renderAll() {
   updateSaveStatus();
 }
 
+const HERO_LABELS = {
+  '': 'Net in this period',
+  received: 'Net received in this period',
+  pending: 'Net still expected in this period',
+  tithe: 'Net flagged for dízimo in this period',
+};
+
 function renderSummary() {
-  const result = computeRange(store, range.from, range.to, categoryFilter);
+  const result = computeRange(store, range.from, range.to, categoryFilter, flagFilter);
+
   el('window-range').textContent = describeRange(result);
+  el('hero-label').textContent = HERO_LABELS[flagFilter];
   el('total-gross').textContent = formatAmount(result.gross, config.currency);
   el('total-net').textContent = formatAmount(result.net, config.currency);
   el('total-count').textContent = String(result.count);
-  el('total-received').textContent = formatAmount(result.receivedNet, config.currency);
-  el('total-pending').textContent = formatAmount(result.pendingNet, config.currency);
-  el('count-received').textContent = entryCount(result.receivedCount);
-  el('count-pending').textContent = entryCount(result.pendingCount);
 
-  // The breakdown always covers the whole period, filter or not, so the pills
-  // stay put and the active one can be clicked again to clear the filter.
-  renderBreakdown(computeRange(store, range.from, range.to, '').entries);
+  el('total-received').textContent = formatAmount(result.receivedNet, config.currency);
+  el('count-received').textContent = entryCount(result.receivedCount);
+  el('total-pending').textContent = formatAmount(result.pendingNet, config.currency);
+  el('count-pending').textContent = entryCount(result.pendingCount);
+  el('total-tithe').textContent = formatAmount(result.titheNet, config.currency);
+  el('count-tithe').textContent = entryCount(result.titheCount);
+
+  for (const card of document.querySelectorAll('[data-flag]')) {
+    card.classList.toggle('active', card.dataset.flag === flagFilter);
+  }
+  el('hero-hint').textContent = flagFilter
+    ? 'Showing only these entries — click the card again to show everything.'
+    : 'Click a card to show only those entries.';
+
+  // The breakdown ignores the category filter so its pills stay put and the
+  // active one can be clicked again to clear, but it does follow the flag filter.
+  renderBreakdown(computeRange(store, range.from, range.to, '', flagFilter).entries);
 }
 
 function entryCount(n) {

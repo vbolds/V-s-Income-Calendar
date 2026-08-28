@@ -4,7 +4,7 @@
 import { escapeHtml } from './calendar.js';
 import { isValidISO } from './dates.js';
 import { formatAmount, parseAmount, sum, toInputString } from './money.js';
-import { matchesCategory } from './summary.js';
+import { matchesCategory, matchesFlag } from './summary.js';
 
 export class TableView {
   constructor({ bodyEl, filterEl, footGrossEl, footNetEl, store, onChange }) {
@@ -17,6 +17,7 @@ export class TableView {
     this.currency = 'BRL';
     this.filter = '';
     this.categoryFilter = '';
+    this.flagFilter = '';
     this.pendingRender = false;
     this.renderQueued = false;
 
@@ -54,9 +55,15 @@ export class TableView {
     this.categoryFilter = category;
   }
 
+  // Received / Expected / Dízimo, driven by the headline cards.
+  setFlagFilter(flag) {
+    this.flagFilter = flag;
+  }
+
   visibleEntries() {
     return this.store.entries.filter((e) => {
       if (!matchesCategory(e, this.categoryFilter)) return false;
+      if (!matchesFlag(e, this.flagFilter)) return false;
       if (!this.filter) return true;
       return `${e.date} ${e.source} ${e.category} ${e.notes}`.toLowerCase().includes(this.filter);
     });

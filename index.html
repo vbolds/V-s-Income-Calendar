@@ -102,7 +102,7 @@
 
     <div class="totals-hero">
       <div class="hero-main">
-        <span class="hero-label">Net in this period</span>
+        <span class="hero-label" id="hero-label">Net in this period</span>
         <span class="hero-value" id="total-net">—</span>
         <span class="hero-sub">
           <span>Gross <b id="total-gross">—</b></span>
@@ -111,17 +111,23 @@
         </span>
       </div>
       <div class="hero-split">
-        <div class="split-card received">
+        <button type="button" class="split-card received" data-flag="received">
           <span class="split-label">✓ Received</span>
           <span class="split-value" id="total-received">—</span>
           <span class="split-count" id="count-received">—</span>
-        </div>
-        <div class="split-card pending">
+        </button>
+        <button type="button" class="split-card pending" data-flag="pending">
           <span class="split-label">◷ Expected</span>
           <span class="split-value" id="total-pending">—</span>
           <span class="split-count" id="count-pending">—</span>
-        </div>
+        </button>
+        <button type="button" class="split-card tithe" data-flag="tithe">
+          <span class="split-label">◈ Dízimo</span>
+          <span class="split-value" id="total-tithe">—</span>
+          <span class="split-count" id="count-tithe">—</span>
+        </button>
       </div>
+      <p class="hero-hint muted small" id="hero-hint">Click a card to show only those entries.</p>
     </div>
     <div class="category-breakdown" id="category-breakdown"></div>
   </section>
