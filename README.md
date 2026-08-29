@@ -117,6 +117,12 @@ table. Several incomes can land on the same day; each is its own entry.
 press <kbd>Enter</kbd> to jump down the same column. Amounts accept whatever you
 type: `1.234,56`, `1234.56`, or `1000`.
 
+**Copy an income** — press **⧉** on any row to copy it to the same day of the
+next month, keeping the source, category, amounts, notes and dízimo flag. Copy
+the copy to keep walking forward, month by month — that is how a recurring
+salary gets planned across the year. A copy that lands in the future starts as
+not received. Copying jumps the calendar to the new month so you can see it land.
+
 **Categories** — type a category on any entry; it is remembered and suggested
 the next time. Filter by one with the **Category** dropdown, or by clicking a
 category in the breakdown strip (click it again to clear). The filter narrows
@@ -140,7 +146,7 @@ headline is the net for that period, with three figures under it:
 | --- | --- |
 | **✓ Received** | Net already in hand |
 | **◷ Expected** | Net still to come |
-| **◈ Dízimo** | Net of everything flagged for dízimo |
+| **◈ Dízimo** | Net of everything flagged for dízimo, plus **10% of its gross** — the amount owed |
 
 **Click any of the three** to show only those entries — the headline, the table
 and the category breakdown all follow it, and the card reads as pressed. Click it

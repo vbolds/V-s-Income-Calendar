@@ -28,6 +28,8 @@ import {
   breakdownByCategory,
   computeRange,
   describeRange,
+  matchesCategory,
+  matchesFlag,
   presetRange,
 } from './summary.js';
 import { TableView } from './table.js';
@@ -85,6 +87,7 @@ function showApp() {
       footGrossEl: el('foot-gross'),
       footNetEl: el('foot-net'),
       store,
+      onDuplicate: duplicateEntry,
     });
     store.subscribe(() => {
       renderAll();
@@ -361,6 +364,36 @@ function wireApp() {
   });
 }
 
+// Copying an entry forward a month is how a recurring income gets planned: copy
+// the salary, then keep copying the newest one to walk down the year.
+function duplicateEntry(entry) {
+  const date = addMonths(entry.date, 1);
+  const copy = store.add({
+    ...entry,
+    id: undefined,
+    date,
+    // A copy landing in the future is a plan, not money received.
+    received: date <= todayISO(),
+  });
+
+  // A filter that hides the new row would make the copy look like it failed.
+  if (!matchesFlag(copy, flagFilter)) flagFilter = '';
+  if (!matchesCategory(copy, categoryFilter)) categoryFilter = '';
+  if (table.filter) {
+    table.filter = '';
+    el('table-filter').value = '';
+  }
+  table.setFlagFilter(flagFilter);
+  table.setCategoryFilter(categoryFilter);
+
+  calendar.setMonth(Number(date.slice(0, 4)), Number(date.slice(5, 7)));
+  syncMonthControls();
+  table.render();
+  table.focusEntry(copy.id, 'date');
+  renderAll();
+  toast(`Copied to ${formatLong(date)}.`);
+}
+
 function setCategoryFilter(category) {
   categoryFilter = category;
   table.setCategoryFilter(category);
@@ -496,6 +529,7 @@ function renderSummary() {
   el('count-pending').textContent = entryCount(result.pendingCount);
   el('total-tithe').textContent = formatAmount(result.titheNet, config.currency);
   el('count-tithe').textContent = entryCount(result.titheCount);
+  el('tithe-tenth').textContent = formatAmount(result.titheTenth, config.currency);
 
   for (const card of document.querySelectorAll('[data-flag]')) {
     card.classList.toggle('active', card.dataset.flag === flagFilter);

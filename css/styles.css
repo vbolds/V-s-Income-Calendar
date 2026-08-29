@@ -298,6 +298,16 @@ label.inline select { max-width: 170px; }
 .split-card.pending .split-value { color: var(--muted); }
 .split-count { font-size: 11px; color: var(--muted); }
 
+.split-extra {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  width: 100%;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.split-extra b { color: var(--tithe); font-weight: 700; font-variant-numeric: tabular-nums; }
+
 /* ---------------- workspace ---------------- */
 
 .workspace {
@@ -462,7 +472,9 @@ label.inline select { max-width: 170px; }
 .entries-table input:hover { border-color: var(--border); }
 .entries-table input:focus { background: var(--surface); }
 
-.entries-table { min-width: 700px; }
+/* Wide enough that no column gets crushed; the pane scrolls sideways for the
+   last few, and the action buttons stay pinned so they never scroll away. */
+.entries-table { min-width: 790px; }
 
 .col-amount { text-align: right; min-width: 76px; }
 .col-amount input { text-align: right; font-variant-numeric: tabular-nums; }
@@ -474,7 +486,30 @@ label.inline select { max-width: 170px; }
 .col-flag input { width: 16px; height: 16px; cursor: pointer; }
 .col-tithe input { accent-color: var(--tithe); }
 .col-received input { accent-color: var(--net); }
-.col-del { width: 30px; }
+/* Nine columns rarely fit beside the calendar, so the row's buttons are pinned
+   to the right edge of the scroll area and stay reachable without scrolling. */
+.col-actions {
+  width: 58px;
+  white-space: nowrap;
+  text-align: right;
+  position: sticky;
+  right: 0;
+  background: var(--surface);
+  box-shadow: -7px 0 7px -7px rgba(0, 0, 0, 0.25);
+}
+th.col-actions { z-index: 2; }
+
+.row-action {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 4px 5px;
+  border-radius: 6px;
+  line-height: 1;
+  font-size: 13px;
+}
+.row-action:hover { background: var(--accent-soft); color: var(--accent); }
+.row-del:hover { background: var(--error-soft); color: var(--error); }
 
 /* A flagged row gets the same green cue as its calendar chip. */
 tr.is-tithe .col-tithe { box-shadow: inset 2px 0 0 var(--tithe), inset -2px 0 0 var(--tithe); }
@@ -482,16 +517,6 @@ tr.is-tithe .col-tithe { box-shadow: inset 2px 0 0 var(--tithe), inset -2px 0 0 
 /* Not received yet: the amounts read as a projection, not as cash. */
 tr.is-pending .col-amount input,
 tr.is-pending .col-source input { font-style: italic; color: var(--muted); }
-
-.row-del {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  padding: 4px 6px;
-  border-radius: 6px;
-  line-height: 1;
-}
-.row-del:hover { background: var(--error-soft); color: var(--error); }
 
 .empty-row td { padding: 22px 8px; text-align: center; color: var(--muted); }
 

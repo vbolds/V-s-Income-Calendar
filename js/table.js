@@ -7,13 +7,14 @@ import { formatAmount, parseAmount, sum, toInputString } from './money.js';
 import { matchesCategory, matchesFlag } from './summary.js';
 
 export class TableView {
-  constructor({ bodyEl, filterEl, footGrossEl, footNetEl, store, onChange }) {
+  constructor({ bodyEl, filterEl, footGrossEl, footNetEl, store, onChange, onDuplicate }) {
     this.bodyEl = bodyEl;
     this.filterEl = filterEl;
     this.footGrossEl = footGrossEl;
     this.footNetEl = footNetEl;
     this.store = store;
     this.onChange = onChange || (() => {});
+    this.onDuplicate = onDuplicate || (() => {});
     this.currency = 'BRL';
     this.filter = '';
     this.categoryFilter = '';
@@ -115,7 +116,10 @@ export class TableView {
         <td class="col-flag col-received"><input type="checkbox" data-field="received" title="Já recebido?"${entry.received ? ' checked' : ''}></td>
         <td class="col-flag col-tithe"><input type="checkbox" data-field="tithe" title="Dízimo"${entry.tithe ? ' checked' : ''}></td>
         <td class="col-notes"><input type="text" data-field="notes" value="${escapeHtml(entry.notes)}" placeholder="—"></td>
-        <td class="col-del"><button type="button" class="row-del" data-action="delete" title="Delete entry">✕</button></td>
+        <td class="col-actions">
+          <button type="button" class="row-action" data-action="duplicate" title="Copy to next month">⧉</button>
+          <button type="button" class="row-action row-del" data-action="delete" title="Delete entry">✕</button>
+        </td>
       </tr>`;
   }
 
@@ -168,12 +172,18 @@ export class TableView {
   }
 
   handleClick(event) {
-    const button = event.target.closest('[data-action="delete"]');
+    const button = event.target.closest('[data-action]');
     if (!button) return;
-    const row = button.closest('tr');
-    const id = row.dataset.id;
+    const id = button.closest('tr').dataset.id;
     const entry = this.store.entries.find((e) => e.id === id);
-    const hasData = entry && (entry.gross != null || entry.net != null || entry.source || entry.notes);
+    if (!entry) return;
+
+    if (button.dataset.action === 'duplicate') {
+      this.onDuplicate(entry);
+      return;
+    }
+
+    const hasData = entry.gross != null || entry.net != null || entry.source || entry.notes;
     if (hasData && !confirm(`Delete the entry on ${entry.date}?`)) return;
     this.store.remove(id);
     this.onChange();
