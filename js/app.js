@@ -2,6 +2,7 @@
 // rolling-window summary, local draft autosave, and the one-commit Save button.
 
 import { CalendarView, escapeHtml } from './calendar.js';
+import { describeDeductions, netOf } from './deductions.js';
 import { MONTH_NAMES, addMonths, formatLong, todayISO } from './dates.js';
 import { GitHubError, getFile, putFile, verifyAccess } from './github.js';
 import { formatAmount, parseAmount } from './money.js';
@@ -460,21 +461,33 @@ function openDayDialog(iso) {
   el('day-source').value = '';
   el('day-category').value = categoryFilter && categoryFilter !== NO_CATEGORY ? categoryFilter : '';
   el('day-gross').value = '';
-  el('day-net').value = '';
   // Income dated today or earlier is normally already in hand; anything ahead is
   // being planned. Either way the box is right there to change.
   el('day-received').checked = iso <= todayISO();
-  el('day-tithe').checked = false;
+  el('day-upwork').checked = false;
   el('day-notes').value = '';
+  updateNetPreview();
   el('day-dialog').showModal();
   // Focus synchronously: a deferred focus() would jump the caret out of whatever
   // field the user had already started typing in.
   el('day-source').focus();
 }
 
+// Shows the deductions being applied as the gross is typed, so the number that
+// lands in the table is never a surprise.
+function updateNetPreview() {
+  const entry = { gross: parseAmount(el('day-gross').value), upwork: el('day-upwork').checked };
+  const money = (v) => formatAmount(v, config.currency);
+  el('day-net-preview').textContent = entry.gross == null
+    ? 'Líquido —'
+    : `Líquido ${money(netOf(entry))}   ·   ${describeDeductions(entry, money)}`;
+}
+
 function wireDayDialog() {
   const dialog = el('day-dialog');
   el('day-cancel').addEventListener('click', () => dialog.close('cancel'));
+  el('day-gross').addEventListener('input', updateNetPreview);
+  el('day-upwork').addEventListener('change', updateNetPreview);
   dialog.addEventListener('close', () => {
     if (dialog.returnValue !== 'save') return;
     const date = el('day-date').value;
@@ -484,9 +497,8 @@ function wireDayDialog() {
       source: el('day-source').value.trim(),
       category: el('day-category').value.trim(),
       gross: parseAmount(el('day-gross').value),
-      net: parseAmount(el('day-net').value),
+      upwork: el('day-upwork').checked,
       received: el('day-received').checked,
-      tithe: el('day-tithe').checked,
       notes: el('day-notes').value.trim(),
     });
     table.render();
@@ -527,9 +539,8 @@ function renderSummary() {
   el('count-received').textContent = entryCount(result.receivedCount);
   el('total-pending').textContent = formatAmount(result.pendingNet, config.currency);
   el('count-pending').textContent = entryCount(result.pendingCount);
-  el('total-tithe').textContent = formatAmount(result.titheNet, config.currency);
-  el('count-tithe').textContent = entryCount(result.titheCount);
-  el('tithe-tenth').textContent = formatAmount(result.titheTenth, config.currency);
+  el('total-tithe').textContent = formatAmount(result.titheTotal, config.currency);
+  renderDeductionLine(result);
 
   for (const card of document.querySelectorAll('[data-flag]')) {
     card.classList.toggle('active', card.dataset.flag === flagFilter);
@@ -545,6 +556,23 @@ function renderSummary() {
 
 function entryCount(n) {
   return `${n} ${n === 1 ? 'entry' : 'entries'}`;
+}
+
+// Spells out where the headline net comes from, so the deductions are never a
+// black box: bruto − dízimo − Upwork = líquido.
+function renderDeductionLine(result) {
+  const money = (v) => formatAmount(v, config.currency);
+  const line = el('deduction-line');
+
+  if (!result.count) {
+    line.textContent = '';
+    return;
+  }
+
+  const parts = [`Bruto ${money(result.gross)}`, `− dízimo 10% ${money(result.titheTotal)}`];
+  if (result.upworkTotal) parts.push(`− Upwork 15% ${money(result.upworkTotal)}`);
+  parts.push(`= ${money(result.net)}`);
+  line.textContent = parts.join('  ');
 }
 
 // Net per category for the chosen period. Hidden when there is nothing to

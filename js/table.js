@@ -3,6 +3,7 @@
 
 import { escapeHtml } from './calendar.js';
 import { isValidISO } from './dates.js';
+import { describeDeductions } from './deductions.js';
 import { formatAmount, parseAmount, sum, toInputString } from './money.js';
 import { matchesCategory, matchesFlag } from './summary.js';
 
@@ -107,14 +108,16 @@ export class TableView {
 
   row(entry) {
     return `
-      <tr data-id="${entry.id}" class="${entry.tithe ? 'is-tithe ' : ''}${entry.received ? '' : 'is-pending'}">
+      <tr data-id="${entry.id}" class="${entry.upwork ? 'is-upwork ' : ''}${entry.received ? '' : 'is-pending'}">
         <td class="col-date"><input type="date" data-field="date" value="${entry.date}"></td>
         <td class="col-source"><input type="text" data-field="source" value="${escapeHtml(entry.source)}" placeholder="Source"></td>
         <td class="col-category"><input type="text" data-field="category" list="category-list" value="${escapeHtml(entry.category)}" placeholder="—"></td>
         <td class="col-amount"><input type="text" inputmode="decimal" data-field="gross" value="${toInputString(entry.gross, this.currency)}" placeholder="0,00"></td>
-        <td class="col-amount"><input type="text" inputmode="decimal" data-field="net" value="${toInputString(entry.net, this.currency)}" placeholder="0,00"></td>
+        <td class="col-amount col-net" title="${escapeHtml(describeDeductions(entry, (v) => formatAmount(v, this.currency)))}">
+          ${entry.net == null ? '—' : formatAmount(entry.net, this.currency)}
+        </td>
         <td class="col-flag col-received"><input type="checkbox" data-field="received" title="Já recebido?"${entry.received ? ' checked' : ''}></td>
-        <td class="col-flag col-tithe"><input type="checkbox" data-field="tithe" title="Dízimo"${entry.tithe ? ' checked' : ''}></td>
+        <td class="col-flag col-upwork"><input type="checkbox" data-field="upwork" title="Upwork — mais 15% de dedução"${entry.upwork ? ' checked' : ''}></td>
         <td class="col-notes"><input type="text" data-field="notes" value="${escapeHtml(entry.notes)}" placeholder="—"></td>
         <td class="col-actions">
           <button type="button" class="row-action" data-action="duplicate" title="Copy to next month">⧉</button>
@@ -129,11 +132,13 @@ export class TableView {
     const id = input.closest('tr').dataset.id;
     const field = input.dataset.field;
 
-    if (field === 'gross' || field === 'net') {
-      this.store.update(id, { [field]: parseAmount(input.value) });
-    } else if (field === 'tithe') {
-      this.store.update(id, { tithe: input.checked });
-      input.closest('tr').classList.toggle('is-tithe', input.checked);
+    if (field === 'gross') {
+      this.store.update(id, { gross: parseAmount(input.value) });
+      this.refreshNetCell(input.closest('tr'), id);
+    } else if (field === 'upwork') {
+      this.store.update(id, { upwork: input.checked });
+      input.closest('tr').classList.toggle('is-upwork', input.checked);
+      this.refreshNetCell(input.closest('tr'), id);
     } else if (field === 'received') {
       this.store.update(id, { received: input.checked });
       input.closest('tr').classList.toggle('is-pending', !input.checked);
@@ -163,12 +168,24 @@ export class TableView {
       return;
     }
 
-    if (field === 'gross' || field === 'net') {
+    if (field === 'gross') {
       const value = parseAmount(input.value);
-      this.store.update(id, { [field]: value });
+      this.store.update(id, { gross: value });
       input.value = toInputString(value, this.currency);
+      this.refreshNetCell(row, id);
       this.onChange();
     }
+  }
+
+  // The net is not an input, so it is repainted in place while the row is being
+  // edited and the table itself is deliberately not being rebuilt.
+  refreshNetCell(row, id) {
+    const cell = row.querySelector('.col-net');
+    if (!cell) return;
+    const entry = this.store.entries.find((e) => e.id === id);
+    if (!entry) return;
+    cell.textContent = entry.net == null ? '—' : formatAmount(entry.net, this.currency);
+    cell.title = describeDeductions(entry, (v) => formatAmount(v, this.currency));
   }
 
   handleClick(event) {

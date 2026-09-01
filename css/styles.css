@@ -11,6 +11,7 @@
   --net-soft: #e4f4ec;
   --tithe: #0a6b3d;
   --tithe-soft: #d3efdf;
+  --upwork: #2f7d6b;
   --warn: #9a6400;
   --warn-soft: #fdf3dc;
   --error: #b42318;
@@ -34,6 +35,7 @@
     --net-soft: #16332a;
     --tithe: #5fe0a8;
     --tithe-soft: #12402d;
+    --upwork: #64c9b4;
     --warn: #e0b050;
     --warn-soft: #3a2f14;
     --error: #f0837a;
@@ -276,7 +278,8 @@ label.inline select { max-width: 170px; }
   font: inherit;
   transition: transform 0.08s ease, box-shadow 0.12s ease;
 }
-.split-card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+button.split-card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+div.split-card { cursor: default; }
 .split-card.received { border-color: color-mix(in srgb, var(--net) 40%, transparent); }
 .split-card.pending { border-style: dashed; }
 .split-card.tithe { border-color: color-mix(in srgb, var(--tithe) 40%, transparent); }
@@ -291,6 +294,15 @@ label.inline select { max-width: 170px; }
 }
 
 .hero-hint { margin: 0; }
+
+/* Where the headline net comes from, spelled out. */
+.deduction-line {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.deduction-line:empty { display: none; }
 
 .split-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 .split-value { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
@@ -426,18 +438,9 @@ label.inline select { max-width: 170px; }
 .chip.pending b { color: var(--muted); }
 .chip:hover { outline: 1.5px solid var(--accent); outline-offset: -1px; }
 
-/* Dízimo: a stronger green border marks the flagged entries at a glance. Drawn
-   as an inset shadow so it takes no width away from the amount inside. */
-.chip.tithe {
-  box-shadow: inset 0 0 0 1.5px var(--tithe);
-  background: var(--tithe-soft);
-}
-.chip.tithe b { color: var(--tithe); }
-
-/* Flagged for dízimo but not received yet: hollow still wins, so planned money
-   never looks like money in hand, and the green marks the flag on top of it. */
-.chip.pending.tithe { background: transparent; }
-.chip.pending.tithe b { color: var(--muted); }
+/* Upwork income carries a second deduction, marked with a bar down its side.
+   Drawn as an inset shadow so it takes no width from the amount inside. */
+.chip.upwork { box-shadow: inset 3px 0 0 var(--upwork); }
 
 .day-total {
   margin-top: auto;
@@ -484,7 +487,7 @@ label.inline select { max-width: 170px; }
 .col-notes { min-width: 70px; }
 .col-flag { width: 62px; text-align: center; }
 .col-flag input { width: 16px; height: 16px; cursor: pointer; }
-.col-tithe input { accent-color: var(--tithe); }
+.col-upwork input { accent-color: var(--upwork); }
 .col-received input { accent-color: var(--net); }
 /* Nine columns rarely fit beside the calendar, so the row's buttons are pinned
    to the right edge of the scroll area and stay reachable without scrolling. */
@@ -511,8 +514,18 @@ th.col-actions { z-index: 2; }
 .row-action:hover { background: var(--accent-soft); color: var(--accent); }
 .row-del:hover { background: var(--error-soft); color: var(--error); }
 
-/* A flagged row gets the same green cue as its calendar chip. */
-tr.is-tithe .col-tithe { box-shadow: inset 2px 0 0 var(--tithe), inset -2px 0 0 var(--tithe); }
+/* An Upwork row gets the same cue as its calendar chip. */
+tr.is-upwork .col-upwork { box-shadow: inset 2px 0 0 var(--upwork), inset -2px 0 0 var(--upwork); }
+
+/* The net is calculated, not typed: shown as plain text, never as a field. */
+.col-net {
+  padding-right: 10px !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--net);
+  cursor: help;
+}
+tr.is-pending .col-net { font-style: italic; color: var(--muted); font-weight: 500; }
 
 /* Not received yet: the amounts read as a projection, not as cash. */
 tr.is-pending .col-amount input,
@@ -562,18 +575,30 @@ tr.is-pending .col-source input { font-style: italic; color: var(--muted); }
   color: var(--text);
   font-size: 14px;
 }
-.day-dialog-inner label.checkbox-label:hover { border-color: var(--tithe); }
+.day-dialog-inner label.checkbox-label:hover { border-color: var(--net); }
 .day-dialog-inner label.checkbox-label input {
   display: inline-block;
   width: 17px;
   height: 17px;
   margin: 0;
-  accent-color: var(--tithe);
+  accent-color: var(--net);
   cursor: pointer;
 }
 .day-dialog-inner label.checkbox-label:has(input:checked) {
-  border-color: var(--tithe);
-  background: var(--tithe-soft);
+  border-color: var(--net);
+  background: var(--net-soft);
+}
+.day-dialog-inner label.checkbox-label.upwork input { accent-color: var(--upwork); }
+.day-dialog-inner label.checkbox-label.upwork:hover { border-color: var(--upwork); }
+
+.net-preview {
+  margin: 0 0 4px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .day-dialog-inner menu { display: flex; justify-content: flex-end; gap: 8px; margin: 18px 0 0; padding: 0; }
 

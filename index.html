@@ -121,13 +121,13 @@
           <span class="split-value" id="total-pending">—</span>
           <span class="split-count" id="count-pending">—</span>
         </button>
-        <button type="button" class="split-card tithe" data-flag="tithe">
+        <div class="split-card tithe">
           <span class="split-label">◈ Dízimo</span>
           <span class="split-value" id="total-tithe">—</span>
-          <span class="split-count" id="count-tithe">—</span>
-          <span class="split-extra">10% do bruto <b id="tithe-tenth">—</b></span>
-        </button>
+          <span class="split-count">10% de todo o bruto</span>
+        </div>
       </div>
+      <p class="deduction-line" id="deduction-line"></p>
       <p class="hero-hint muted small" id="hero-hint">Click a card to show only those entries.</p>
     </div>
     <div class="category-breakdown" id="category-breakdown"></div>
@@ -168,9 +168,9 @@
               <th class="col-source">Source</th>
               <th class="col-category">Category</th>
               <th class="col-amount">Gross</th>
-              <th class="col-amount">Net</th>
+              <th class="col-amount" title="Gross − 10% dízimo − 15% Upwork">Net</th>
               <th class="col-flag" title="Já recebido?">Recebido</th>
-              <th class="col-flag" title="Dízimo">Dízimo</th>
+              <th class="col-flag" title="Upwork — mais 15% de dedução">Upwork</th>
               <th class="col-notes">Notes</th>
               <th class="col-actions"></th>
             </tr>
@@ -213,26 +213,21 @@
       Category
       <input id="day-category" type="text" list="category-list" autocomplete="off" placeholder="Type a new one or pick an existing">
     </label>
-    <div class="two-col">
-      <label>
-        Gross
-        <input id="day-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
-      </label>
-      <label>
-        Net
-        <input id="day-net" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
-      </label>
-    </div>
+    <label>
+      Gross
+      <input id="day-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
+    </label>
     <div class="two-col">
       <label class="checkbox-label received">
         <input id="day-received" type="checkbox">
         <span>Recebido</span>
       </label>
-      <label class="checkbox-label">
-        <input id="day-tithe" type="checkbox">
-        <span>Dízimo</span>
+      <label class="checkbox-label upwork">
+        <input id="day-upwork" type="checkbox">
+        <span>Upwork −15%</span>
       </label>
     </div>
+    <p class="net-preview" id="day-net-preview">Líquido —</p>
     <label>
       Notes
       <input id="day-notes" type="text" autocomplete="off" placeholder="optional">

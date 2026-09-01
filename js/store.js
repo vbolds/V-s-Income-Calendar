@@ -6,6 +6,7 @@
 //   * the Save button (see app.js) — the only thing that commits to GitHub.
 
 import { isValidISO, todayISO } from './dates.js';
+import { netOf } from './deductions.js';
 import { round2 } from './money.js';
 
 const CONFIG_KEY = 'incomeCalendar.config';
@@ -68,18 +69,22 @@ export function newId() {
 
 export function makeEntry(partial = {}) {
   const date = partial.date || '';
+  const gross = partial.gross == null ? null : round2(partial.gross);
+  const upwork = partial.upwork === true;
   return {
     id: partial.id || newId(),
     date,
     source: partial.source || '',
     category: partial.category || '',
-    gross: partial.gross == null ? null : round2(partial.gross),
-    net: partial.net == null ? null : round2(partial.net),
+    gross,
+    upwork,
+    // Never taken from the caller: the net is always the gross minus the
+    // deductions, so it cannot drift away from the numbers it is made of.
+    net: netOf({ gross, upwork }),
     // Unstated means "decide from the date": money dated today or earlier has
     // normally arrived, money dated ahead is still expected. This is what makes
     // entry files written before the flag existed read sensibly.
     received: partial.received === undefined ? date <= todayISO() : partial.received === true,
-    tithe: partial.tithe === true,
     notes: partial.notes || '',
   };
 }
@@ -116,17 +121,18 @@ export function parseFile(text) {
       dropped += 1;
       continue;
     }
-    // Files written before categories and the tithe flag existed simply have
-    // those fields missing, and default cleanly.
+    // Fields added over time simply default when missing. A stored net is
+    // deliberately ignored: it is recalculated from the gross on every load, so
+    // the rules are the single source of truth. Files that still carry the old
+    // per-entry "tithe" flag load fine — every income is tithed now.
     entries.push(makeEntry({
       id: typeof item.id === 'string' ? item.id : undefined,
       date: item.date,
       source: typeof item.source === 'string' ? item.source : '',
       category: typeof item.category === 'string' ? item.category : '',
       gross: Number.isFinite(item.gross) ? item.gross : null,
-      net: Number.isFinite(item.net) ? item.net : null,
+      upwork: item.upwork === true,
       received: typeof item.received === 'boolean' ? item.received : undefined,
-      tithe: item.tithe === true,
       notes: typeof item.notes === 'string' ? item.notes : '',
     }));
   }
@@ -143,9 +149,11 @@ export function serializeFile(entries) {
       source: e.source,
       category: e.category,
       gross: e.gross,
+      upwork: e.upwork,
+      // Written out for readability elsewhere (a spreadsheet, a glance at the
+      // file on GitHub); on load it is recalculated rather than trusted.
       net: e.net,
       received: e.received,
-      tithe: e.tithe,
       notes: e.notes,
     })),
   };
@@ -162,9 +170,11 @@ export function sortEntries(entries) {
 
 // Only the entries decide whether there is something to save — the file's
 // updatedAt stamp changes on every write and must not count as a change.
+// The net is left out on purpose: it is derived from the gross and the Upwork
+// flag, so recalculating it on load must never look like an unsaved edit.
 function fingerprint(entries) {
   return JSON.stringify(sortEntries(entries)
-    .map((e) => [e.date, e.source, e.category, e.gross, e.net, e.received, e.tithe, e.notes]));
+    .map((e) => [e.date, e.source, e.category, e.gross, e.upwork, e.received, e.notes]));
 }
 
 /* ---------------- store ---------------- */
@@ -216,7 +226,10 @@ export class Store {
     this.entries = this.entries.map((e) => {
       if (e.id !== id) return e;
       changed = true;
-      return { ...e, ...patch };
+      // Recalculated on every edit, so changing the gross or the Upwork flag
+      // moves the net with it.
+      const merged = { ...e, ...patch };
+      return { ...merged, net: netOf(merged) };
     });
     if (changed) {
       this.entries = sortEntries(this.entries);

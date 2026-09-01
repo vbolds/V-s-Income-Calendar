@@ -10,13 +10,13 @@ any browser — Mac, Windows, phone — and that keeps every change forever.
 - **Any period you like** — pick a first day and a last day, both counted, and
   get the gross and net totals for it. Presets cover the common ones, including
   *Month back* (e.g. last day August 2nd → July 2nd to August 2nd).
+- **Net is calculated, never typed** — you enter the gross; the app takes off
+  10% dízimo, plus 15% more when the work was billed through **Upwork**.
 - **Received vs expected** — plan income for months ahead and flag each one as
   **Recebido** once it actually lands. The totals show both, split apart, and
   either one can be clicked to show just those entries.
 - **Categories** — tag each income and filter the totals by category, with a
   per-category breakdown of the chosen period.
-- **Dízimo** — flag any income as tithe; flagged entries get a strong green
-  outline on the calendar.
 - **Save button** — edit as much as you like; pressing Save writes everything to
   GitHub as a single commit. Unsaved edits are kept safe in your browser in the
   meantime.
@@ -115,10 +115,11 @@ table. Several incomes can land on the same day; each is its own entry.
 
 **Edit fast** — the table is built for speed: type straight into any cell, and
 press <kbd>Enter</kbd> to jump down the same column. Amounts accept whatever you
-type: `1.234,56`, `1234.56`, or `1000`.
+type: `1.234,56`, `1234.56`, or `1000`. Only the **gross** is typed — the net is
+calculated beside it, and hovering it shows the arithmetic.
 
 **Copy an income** — press **⧉** on any row to copy it to the same day of the
-next month, keeping the source, category, amounts, notes and dízimo flag. Copy
+next month, keeping the source, category, gross, notes and the Upwork flag. Copy
 the copy to keep walking forward, month by month — that is how a recurring
 salary gets planned across the year. A copy that lands in the future starts as
 not received. Copying jumps the calendar to the new month so you can see it land.
@@ -133,11 +134,8 @@ received yet is drawn hollow with a dashed outline on the calendar, and in
 italics in the table, so a plan never looks like cash in hand. New entries start
 ticked when dated today or earlier, unticked when dated ahead.
 
-**Dízimo** — tick the box on an entry, in the dialog or in the table's *Dízimo*
-column. Flagged entries get a strong green outline on their calendar chip, and
-their total for the period is one of the three headline cards. An entry that is
-flagged but not received yet stays hollow: the outline marks the flag, the hollow
-fill still says the money has not arrived.
+**Upwork** — tick it when the work was billed through Upwork, and a further 15%
+comes off the gross. Those entries carry a coloured bar on their calendar chip.
 
 **See a period's income** — set **From** and **To**; both days are counted. The
 headline is the net for that period, with three figures under it:
@@ -146,13 +144,14 @@ headline is the net for that period, with three figures under it:
 | --- | --- |
 | **✓ Received** | Net already in hand |
 | **◷ Expected** | Net still to come |
-| **◈ Dízimo** | Net of everything flagged for dízimo, plus **10% of its gross** — the amount owed |
+| **◈ Dízimo** | 10% of all the gross in the period — the amount owed |
 
-**Click any of the three** to show only those entries — the headline, the table
+**Click Received or Expected** to show only those entries — the headline, the table
 and the category breakdown all follow it, and the card reads as pressed. Click it
-again to go back to everything. The three cards keep showing their own totals
-while a filter is on, so you can click straight from one to another. Category and
-card filters combine.
+again to go back to everything. Those two cards keep showing their own totals
+while a filter is on, so you can click straight from one to the other. The
+Dízimo figure and the arithmetic line below the cards describe whatever is on
+screen, so they follow every filter. Category and card filters combine.
 
 The calendar highlights the days the period covers, and the breakdown strip shows
 the net per category. The presets are:
@@ -204,20 +203,38 @@ the app. Drafts are local only and never create commits.
       "source": "Salary",
       "category": "Employment",
       "gross": 8000,
-      "net": 6400,
+      "upwork": false,
+      "net": 7200,
       "received": true,
-      "tithe": true,
       "notes": ""
     }
   ]
 }
 ```
 
-Older files still load fine. A missing category or tithe flag defaults to empty
-and `false`; a missing **received** flag is read from the date — dated today or
+`net` is written out so the file reads well on its own, but it is always
+recalculated from `gross` and `upwork` when loaded — the rules decide it, never
+the stored number.
+
+Older files still load fine. A missing category or Upwork flag defaults to empty
+and `false`; the retired per-entry `tithe` flag is ignored, since every income is
+tithed now; a missing **received** flag is read from the date — dated today or
 earlier counts as received, dated ahead counts as expected — so entries written
 before the flag existed land on the right side of the split. Once you save, the
 flag is written out explicitly and the date no longer decides it.
+
+### How the net is worked out
+
+Both percentages come off the **full gross** and never compound on each other:
+
+| | Plain income | Upwork income |
+| --- | --- | --- |
+| Gross | R$ 1.000,00 | R$ 1.000,00 |
+| Dízimo (10% of gross) | − R$ 100,00 | − R$ 100,00 |
+| Upwork (15% of gross) | — | − R$ 150,00 |
+| **Net** | **R$ 900,00** | **R$ 750,00** |
+
+The rates live in `js/deductions.js`, in one place, if they ever change.
 
 Expenses are not part of this version. When they are added, they will slot into
 the same file as entries with a type, so this history stays intact.
