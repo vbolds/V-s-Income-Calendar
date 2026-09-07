@@ -3,6 +3,7 @@
 
 import { CalendarView, escapeHtml } from './calendar.js';
 import { describeDeductions, netOf } from './deductions.js';
+import { hueStyle } from './palette.js';
 import { MONTH_NAMES, addMonths, formatLong, todayISO } from './dates.js';
 import { GitHubError, getFile, putFile, verifyAccess } from './github.js';
 import { formatAmount, parseAmount } from './money.js';
@@ -592,8 +593,9 @@ function renderBreakdown(entries) {
     const value = group.category || NO_CATEGORY;
     const active = value === categoryFilter;
     return `
-      <button type="button" class="cat-pill${active ? ' active' : ''}" data-category="${escapeHtml(value)}"
+      <button type="button" class="cat-pill${active ? ' active' : ''}" data-category="${escapeHtml(value)}"${hueStyle(group.category)}
         title="${active ? 'Click to clear this filter' : 'Click to show only this category'}">
+        <span class="cat-dot"></span>
         <span class="cat-name">${escapeHtml(group.category || NO_CATEGORY_LABEL)}</span>
         <span class="cat-net">${formatAmount(group.net, config.currency)}</span>
         <span class="cat-count">${group.count}</span>

@@ -12,6 +12,11 @@
   --tithe: #0a6b3d;
   --tithe-soft: #d3efdf;
   --upwork: #2f7d6b;
+  --border-strong: #c3c9d2;
+  --cat-s: 58%;
+  --cat-l: 45%;
+  --cat-wash-s: 68%;
+  --cat-wash-l: 95%;
   --warn: #9a6400;
   --warn-soft: #fdf3dc;
   --error: #b42318;
@@ -36,6 +41,11 @@
     --tithe: #5fe0a8;
     --tithe-soft: #12402d;
     --upwork: #64c9b4;
+    --border-strong: #454b57;
+    --cat-s: 62%;
+    --cat-l: 62%;
+    --cat-wash-s: 38%;
+    --cat-wash-l: 16%;
     --warn: #e0b050;
     --warn-soft: #3a2f14;
     --error: #f0837a;
@@ -210,10 +220,25 @@ label.inline select { max-width: 170px; }
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 5px 12px;
+  padding: 5px 12px 5px 10px;
   color: inherit;
   font-size: 12.5px;
 }
+
+/* The same hue as the table cells, so the pills read as the legend. */
+.cat-pill[style*="--cat-hue"] {
+  border-color: hsl(var(--cat-hue) var(--cat-s) var(--cat-l));
+  background: hsl(var(--cat-hue) var(--cat-wash-s) var(--cat-wash-l));
+}
+.cat-pill .cat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  align-self: center;
+  flex: none;
+}
+.cat-pill[style*="--cat-hue"] .cat-dot { background: hsl(var(--cat-hue) var(--cat-s) var(--cat-l)); }
 .cat-pill:hover { border-color: var(--accent); background: var(--accent-soft); }
 .cat-pill.active {
   border-color: var(--accent);
@@ -532,6 +557,40 @@ tr.is-pending .col-amount input,
 tr.is-pending .col-source input { font-style: italic; color: var(--muted); }
 
 .empty-row td { padding: 22px 8px; text-align: center; color: var(--muted); }
+
+/* A heading between months, carrying that month's net so the eye never has to
+   add the rows up itself. */
+.month-row td {
+  background: var(--surface-2);
+  border-top: 2px solid var(--border-strong);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+}
+.month-row td:first-child { border-radius: 6px 0 0 6px; }
+.month-name {
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.month-count { margin-left: 9px; font-size: 11px; color: var(--muted); }
+.month-total {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--net);
+  padding-right: 10px !important;
+}
+
+/* Each category carries its own hue, worked out from its name. The bar sits on
+   the category cell so the colour is right beside the word it belongs to, and
+   the cells line up into a column you can scan. */
+.col-category { position: relative; }
+.col-category[style*="--cat-hue"] {
+  box-shadow: inset 3px 0 0 hsl(var(--cat-hue) var(--cat-s) var(--cat-l));
+  background: hsl(var(--cat-hue) var(--cat-wash-s) var(--cat-wash-l));
+}
+.col-category[style*="--cat-hue"] input { padding-left: 10px; }
 
 .entries-table tfoot td {
   position: sticky;

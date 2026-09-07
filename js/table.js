@@ -1,10 +1,11 @@
 // The spreadsheet-style view. Every cell is a real input so entries can be typed
 // quickly; edits go straight into the same store the calendar reads from.
 
-import { escapeHtml } from './calendar.js';
+import { MONTH_NAMES, escapeHtml } from './calendar.js';
 import { isValidISO } from './dates.js';
 import { describeDeductions } from './deductions.js';
 import { formatAmount, parseAmount, sum, toInputString } from './money.js';
+import { categoryHue, hueStyle } from './palette.js';
 import { matchesCategory, matchesFlag } from './summary.js';
 
 export class TableView {
@@ -89,10 +90,43 @@ export class TableView {
     this.pendingRender = false;
 
     this.bodyEl.innerHTML = rows.length
-      ? rows.map((e) => this.row(e)).join('')
+      ? this.groupByMonth(rows)
       : `<tr class="empty-row"><td colspan="9">${this.emptyMessage()}</td></tr>`;
 
     this.renderTotals(rows);
+  }
+
+  // Entries are sorted by date, so each change of month starts a new group. The
+  // heading carries that month's net, which is the number you would otherwise be
+  // adding up by eye.
+  groupByMonth(rows) {
+    const html = [];
+    let current = null;
+
+    for (let i = 0; i < rows.length; i += 1) {
+      const month = rows[i].date.slice(0, 7);
+      if (month !== current) {
+        current = month;
+        const inMonth = rows.filter((e) => e.date.startsWith(month));
+        html.push(this.monthHeading(month, inMonth));
+      }
+      html.push(this.row(rows[i]));
+    }
+    return html.join('');
+  }
+
+  monthHeading(month, entries) {
+    const [year, m] = month.split('-');
+    const net = sum(entries.map((e) => e.net ?? 0));
+    return `
+      <tr class="month-row">
+        <td colspan="4">
+          <span class="month-name">${MONTH_NAMES[Number(m) - 1]} ${year}</span>
+          <span class="month-count">${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}</span>
+        </td>
+        <td class="month-total">${formatAmount(net, this.currency)}</td>
+        <td colspan="4"></td>
+      </tr>`;
   }
 
   // Distinguishes "nothing recorded yet" from "the filters hide everything".
@@ -111,7 +145,7 @@ export class TableView {
       <tr data-id="${entry.id}" class="${entry.upwork ? 'is-upwork ' : ''}${entry.received ? '' : 'is-pending'}">
         <td class="col-date"><input type="date" data-field="date" value="${entry.date}"></td>
         <td class="col-source"><input type="text" data-field="source" value="${escapeHtml(entry.source)}" placeholder="Source"></td>
-        <td class="col-category"><input type="text" data-field="category" list="category-list" value="${escapeHtml(entry.category)}" placeholder="—"></td>
+        <td class="col-category"${hueStyle(entry.category)}><input type="text" data-field="category" list="category-list" value="${escapeHtml(entry.category)}" placeholder="—"></td>
         <td class="col-amount"><input type="text" inputmode="decimal" data-field="gross" value="${toInputString(entry.gross, this.currency)}" placeholder="0,00"></td>
         <td class="col-amount col-net" title="${escapeHtml(describeDeductions(entry, (v) => formatAmount(v, this.currency)))}">
           ${entry.net == null ? '—' : formatAmount(entry.net, this.currency)}
@@ -144,6 +178,14 @@ export class TableView {
       input.closest('tr').classList.toggle('is-pending', !input.checked);
     } else if (field === 'source' || field === 'notes' || field === 'category') {
       this.store.update(id, { [field]: input.value });
+      if (field === 'category') {
+        // The colour follows what is being typed, without rebuilding the table
+        // underneath the cursor.
+        const cell = input.closest('td');
+        const hue = categoryHue(input.value);
+        if (hue == null) cell.style.removeProperty('--cat-hue');
+        else cell.style.setProperty('--cat-hue', String(hue));
+      }
     }
     this.onChange();
   }
@@ -214,14 +256,15 @@ export class TableView {
     if (!input) return;
     event.preventDefault();
     const field = input.dataset.field;
-    const row = input.closest('tr');
-    const next = row.nextElementSibling;
-    if (next && next.dataset.id) {
-      const target = next.querySelector(`input[data-field="${field}"]`);
-      if (target) {
-        target.focus();
-        target.select?.();
-      }
+
+    // Step over the month headings sitting between entries.
+    let next = input.closest('tr').nextElementSibling;
+    while (next && !next.dataset.id) next = next.nextElementSibling;
+
+    const target = next && next.querySelector(`input[data-field="${field}"]`);
+    if (target) {
+      target.focus();
+      target.select?.();
     } else {
       input.blur();
     }

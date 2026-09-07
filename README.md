@@ -125,9 +125,15 @@ salary gets planned across the year. A copy that lands in the future starts as
 not received. Copying jumps the calendar to the new month so you can see it land.
 
 **Categories** — type a category on any entry; it is remembered and suggested
-the next time. Filter by one with the **Category** dropdown, or by clicking a
-category in the breakdown strip (click it again to clear). The filter narrows
-both the totals and the table.
+the next time. Each one gets its own colour, worked out from its name, shown as
+a bar on the category cell and matched by the dot on its breakdown pill, so the
+pills double as the legend. Filter by one with the **Category** dropdown, or by
+clicking a category in the breakdown strip (click it again to clear). The filter
+narrows both the totals and the table.
+
+**Reading the table** — entries are grouped by month, and each month's heading
+carries its own net for the rows shown, so the periods separate themselves
+without any counting by eye. The headings follow the filters too.
 
 **Recebido** — tick it once the money actually arrives. Income you have not
 received yet is drawn hollow with a dashed outline on the calendar, and in
