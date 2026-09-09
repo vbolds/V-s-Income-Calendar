@@ -22,15 +22,23 @@ import { round2 } from './money.js';
 export const DEFAULT_RATES = {
   serviceFee: 0.15,   // Upwork, sobre o bruto
   withdrawal: 2.99,   // US$ fixos por transferência para a Wise
+  wiseFee: 0.0086,    // tarifa da Wise + IOF, já embutida no VET
   tithe: 0.10,        // dízimo, sobre o bruto
 };
+
+// O VET é o câmbio depois da tarifa e do IOF: 5,1028 vira 5,0588. Para o dízimo
+// vale a cotação do dia, então o desconto é desfeito de volta.
+export function nominalRate(vet, rates = DEFAULT_RATES) {
+  if (!Number.isFinite(Number(vet))) return null;
+  return Number(vet) / (1 - rates.wiseFee);
+}
 
 export function ratesFor(entry, fallback = DEFAULT_RATES) {
   return { ...DEFAULT_RATES, ...fallback, ...(entry && entry.rates) };
 }
 
 const EMPTY = {
-  usdGross: null, usdFee: 0, usdWithdrawal: 0, usdSent: null,
+  usdGross: null, usdFee: 0, usdWithdrawal: 0, usdSent: null, nominal: null,
   gross: null, tithe: 0, landed: null, net: null,
 };
 
@@ -63,8 +71,13 @@ function computeUpwork(entry, rates) {
 
   const usdGross = round2(usdNet / (1 - rates.serviceFee));
   const usdSent = round2(usdNet - rates.withdrawal);
-  const gross = round2(usdGross * rate);
+
+  // A base do dízimo vale pela cotação do dia, não pela líquida de tarifa: o
+  // VET é recomposto antes de converter o bruto.
+  const nominal = nominalRate(rate, rates);
+  const gross = round2(usdGross * nominal);
   const tithe = round2(gross * rates.tithe);
+  // O que entra na conta, esse sim, é convertido pelo VET.
   const landed = round2(usdSent * rate);
 
   return {
@@ -72,6 +85,7 @@ function computeUpwork(entry, rates) {
     usdFee: round2(usdGross - usdNet),
     usdWithdrawal: rates.withdrawal,
     usdSent,
+    nominal,
     gross,
     tithe,
     landed,
@@ -100,6 +114,7 @@ export function statement(entry, fallbackRates = DEFAULT_RATES) {
     { label: 'Withdrawal fee', usd: -c.usdWithdrawal },
     { label: 'Enviado para a Wise', usd: c.usdSent },
     { label: `Caiu na conta (VET ${formatRate(entry.rate)})`, brl: c.landed },
+    { label: `Bruto pela cotação do dia (${formatRate(c.nominal)})`, brl: c.gross, muted: true },
     { label: `Dízimo ${pct(rates.tithe)} do bruto`, brl: -c.tithe },
     { label: 'Livre para gastar', brl: c.net, total: true },
   ];

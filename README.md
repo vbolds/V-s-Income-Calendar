@@ -257,17 +257,21 @@ US$ 393,89 ÷ 0,85 = US$ 463,40, which is what the Upwork statement shows.
     = enviado à Wise      US$ 1.572,57
     × VET 5,0588
     = caiu na conta        R$ 7.955,32
-    − dízimo (10% do bruto, US$ 1.853,60 × VET)
-                           R$   937,70
-    = livre para gastar    R$ 7.017,62
+    − dízimo               R$   945,83
+    = livre para gastar    R$ 7.009,49
 
 The **VET already includes IOF and Wise's fee** (5,1028 becomes 5,0588 — the
 0,86%), so nothing is taken off again after the conversion.
 
+The dízimo, though, is worked out at **the day's rate**, not at the one net of
+those fees: the VET is put back to 5,1027 before converting the gross, so the
+base is US$ 1.853,60 × 5,1027 = R$ 9.458,33 and a tenth of that is R$ 945,83.
+What lands in the account still converts at the VET itself.
+
 Because the dízimo is a tenth of the **gross**, it comes to about 11,9% of what
 actually reaches the account: the fees come out of your side, not the tithe's.
 
-The rates — service fee, withdrawal fee, dízimo — live under the **%** button and
+The rates — service fee, withdrawal fee, Wise + IOF, dízimo — live under the **%** button and
 are stored in the data file, so they are the same on every device. Each entry
 keeps the rates it was created with, so changing one today never rewrites what
 already happened.

@@ -590,6 +590,7 @@ function wireRatesDialog() {
   el('rates-btn').addEventListener('click', () => {
     el('rate-service').value = String(round1(rates.serviceFee * 100)).replace('.', ',');
     el('rate-withdrawal').value = String(rates.withdrawal).replace('.', ',');
+    el('rate-wise').value = String(round2pct(rates.wiseFee * 100)).replace('.', ',');
     el('rate-tithe').value = String(round1(rates.tithe * 100)).replace('.', ',');
     dialog.showModal();
   });
@@ -599,11 +600,13 @@ function wireRatesDialog() {
     if (dialog.returnValue !== 'save') return;
     const service = parseAmount(el('rate-service').value);
     const withdrawal = parseAmount(el('rate-withdrawal').value);
+    const wise = parseRate(el('rate-wise').value);
     const tithe = parseAmount(el('rate-tithe').value);
 
     rates = {
       serviceFee: service == null ? rates.serviceFee : service / 100,
       withdrawal: withdrawal == null ? rates.withdrawal : withdrawal,
+      wiseFee: wise == null ? rates.wiseFee : wise / 100,
       tithe: tithe == null ? rates.tithe : tithe / 100,
     };
     // Só entradas novas usam as taxas novas; as que existem guardam as suas.
@@ -614,6 +617,12 @@ function wireRatesDialog() {
 
 function round1(n) {
   return Math.round(n * 10) / 10;
+}
+
+// A tarifa da Wise tem duas casas (0,86%), então não pode ser arredondada como
+// as outras.
+function round2pct(n) {
+  return Math.round(n * 100) / 100;
 }
 
 /* ---------------- rendering ---------------- */
