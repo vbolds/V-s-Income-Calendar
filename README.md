@@ -10,8 +10,9 @@ any browser — Mac, Windows, phone — and that keeps every change forever.
 - **Any period you like** — pick a first day and a last day, both counted, and
   get the gross and net totals for it. Presets cover the common ones, including
   *Month back* (e.g. last day August 2nd → July 2nd to August 2nd).
-- **Net is calculated, never typed** — you enter the gross; the app takes off
-  10% dízimo, plus 15% more when the work was billed through **Upwork**.
+- **Net is calculated, never typed** — for income in reais you enter the gross;
+  for an Upwork transfer you enter the weekly net in dollars and the Wise VET,
+  and the app works the whole chain out.
 - **Received vs expected** — plan income for months ahead and flag each one as
   **Recebido** once it actually lands. The totals show both, split apart, and
   either one can be clicked to show just those entries.
@@ -140,8 +141,11 @@ received yet is drawn hollow with a dashed outline on the calendar, and in
 italics in the table, so a plan never looks like cash in hand. New entries start
 ticked when dated today or earlier, unticked when dated ahead.
 
-**Upwork** — tick it when the work was billed through Upwork, and a further 15%
-comes off the gross. Those entries carry a coloured bar on their calendar chip.
+**Upwork** — pick *Upwork (US$)* in the dialog and enter two things: the **net
+of the weeks** as Upwork shows it (you can add them up with `+`, e.g.
+`393,89 + 393,89`) and the **VET** of the Wise transfer. The dialog shows the
+whole chain as you type, so the number that lands in the table is never a
+surprise — it is the calculator and the form at the same time.
 
 **See a period's income** — set **From** and **To**; both days are counted. The
 headline is the net for that period, with three figures under it:
@@ -208,8 +212,12 @@ the app. Drafts are local only and never create commits.
       "date": "2026-08-05",
       "source": "Salary",
       "category": "Employment",
+      "kind": "brl",
       "gross": 8000,
-      "upwork": false,
+      "rates": { "serviceFee": 0.15, "withdrawal": 2.99, "tithe": 0.1 },
+      "grossBRL": 8000,
+      "tithe": 800,
+      "landed": 8000,
       "net": 7200,
       "received": true,
       "notes": ""
@@ -218,29 +226,51 @@ the app. Drafts are local only and never create commits.
 }
 ```
 
-`net` is written out so the file reads well on its own, but it is always
-recalculated from `gross` and `upwork` when loaded — the rules decide it, never
-the stored number.
+An Upwork entry carries `"kind": "upwork"` with `usdNet` and `rate` instead of
+`gross`. The calculated fields (`grossBRL`, `tithe`, `landed`, `net`) are written
+out so the file reads well on its own — in a spreadsheet, or at a glance on
+GitHub — but on load they are always recalculated from what you typed. The rules
+decide them, never the stored numbers.
 
-Older files still load fine. A missing category or Upwork flag defaults to empty
-and `false`; the retired per-entry `tithe` flag is ignored, since every income is
-tithed now; a missing **received** flag is read from the date — dated today or
+Older files still load fine, as income in reais keeping their gross — the Upwork
+format needs the dollar amount and the VET, which they do not have, so an Upwork
+transfer recorded under the old rules is worth entering again. A missing category
+defaults to empty; the retired per-entry `tithe` and `upwork` flags are ignored; a missing **received** flag is read from the date — dated today or
 earlier counts as received, dated ahead counts as expected — so entries written
 before the flag existed land on the right side of the split. Once you save, the
 flag is written out explicitly and the date no longer decides it.
 
 ### How the net is worked out
 
-Both percentages come off the **full gross** and never compound on each other:
+**Income in reais** — you type the gross; the dízimo is a tenth of it.
 
-| | Plain income | Upwork income |
-| --- | --- | --- |
-| Gross | R$ 1.000,00 | R$ 1.000,00 |
-| Dízimo (10% of gross) | − R$ 100,00 | − R$ 100,00 |
-| Upwork (15% of gross) | — | − R$ 150,00 |
-| **Net** | **R$ 900,00** | **R$ 750,00** |
+    Bruto R$ 8.000,00  − dízimo R$ 800,00  = R$ 7.200,00 livre
 
-The rates live in `js/deductions.js`, in one place, if they ever change.
+**Upwork** — you type the net of the weeks and the VET; everything else follows.
+The gross is recomposed by **dividing by 0,85**, never by multiplying by 1,15:
+US$ 393,89 ÷ 0,85 = US$ 463,40, which is what the Upwork statement shows.
+
+    Net das semanas       US$ 1.575,56
+    Bruto recomposto      US$ 1.853,60   (÷ 0,85)
+      service fee 15%     US$   278,04
+    − withdrawal fee      US$     2,99
+    = enviado à Wise      US$ 1.572,57
+    × VET 5,0588
+    = caiu na conta        R$ 7.955,32
+    − dízimo (10% do bruto, US$ 1.853,60 × VET)
+                           R$   937,70
+    = livre para gastar    R$ 7.017,62
+
+The **VET already includes IOF and Wise's fee** (5,1028 becomes 5,0588 — the
+0,86%), so nothing is taken off again after the conversion.
+
+Because the dízimo is a tenth of the **gross**, it comes to about 11,9% of what
+actually reaches the account: the fees come out of your side, not the tithe's.
+
+The rates — service fee, withdrawal fee, dízimo — live under the **%** button and
+are stored in the data file, so they are the same on every device. Each entry
+keeps the rates it was created with, so changing one today never rewrites what
+already happened.
 
 Expenses are not part of this version. When they are added, they will slot into
 the same file as entries with a type, so this history stays intact.

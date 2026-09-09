@@ -69,6 +69,7 @@
       <span id="save-status" class="save-status">Loading…</span>
       <button id="save-btn" class="primary" disabled>Save</button>
       <button id="reload-btn" class="ghost" title="Discard local changes and reload from GitHub">Reload</button>
+      <button id="rates-btn" class="ghost" title="Taxas (Upwork, Wise, dízimo)">%</button>
       <button id="settings-btn" class="ghost" title="Connection settings">⚙</button>
     </div>
   </header>
@@ -167,11 +168,10 @@
               <th class="col-date">Date</th>
               <th class="col-source">Source</th>
               <th class="col-category">Category</th>
-              <th class="col-amount">Gross</th>
-              <th class="col-amount" title="Gross − 10% dízimo − 15% Upwork">Net</th>
+              <th class="col-amount" title="Base do dízimo, em reais">Bruto</th>
+              <th class="col-amount" title="O que entra na conta">Caiu</th>
+              <th class="col-amount" title="Caiu − dízimo">Livre</th>
               <th class="col-flag" title="Já recebido?">Recebido</th>
-              <th class="col-flag" title="Upwork — mais 15% de dedução">Upwork</th>
-              <th class="col-notes">Notes</th>
               <th class="col-actions"></th>
             </tr>
           </thead>
@@ -180,8 +180,9 @@
             <tr>
               <td colspan="3" class="foot-label">Shown total</td>
               <td class="col-amount" id="foot-gross">—</td>
+              <td class="col-amount" id="foot-landed">—</td>
               <td class="col-amount" id="foot-net">—</td>
-              <td colspan="4"></td>
+              <td colspan="2"></td>
             </tr>
           </tfoot>
         </table>
@@ -194,6 +195,29 @@
   <div id="toast" class="toast hidden"></div>
 </section>
 
+<dialog id="rates-dialog">
+  <form method="dialog" class="day-dialog-inner">
+    <h2>Taxas</h2>
+    <p class="muted small">Valem para entradas novas. As que já existem guardam as taxas de quando foram criadas, então mexer aqui nunca reescreve o passado.</p>
+    <label>
+      Service fee da Upwork (%)
+      <input id="rate-service" type="text" inputmode="decimal" autocomplete="off">
+    </label>
+    <label>
+      Withdrawal fee por transferência (US$)
+      <input id="rate-withdrawal" type="text" inputmode="decimal" autocomplete="off">
+    </label>
+    <label>
+      Dízimo (%)
+      <input id="rate-tithe" type="text" inputmode="decimal" autocomplete="off">
+    </label>
+    <menu>
+      <button type="button" id="rates-cancel" class="ghost">Cancelar</button>
+      <button id="rates-save" value="save" class="primary">Salvar</button>
+    </menu>
+  </form>
+</dialog>
+
 <!-- Category suggestions, shared by the table and the day dialog -->
 <datalist id="category-list"></datalist>
 
@@ -205,29 +229,44 @@
       Date
       <input id="day-date" type="date" required>
     </label>
+    <div class="kind-tabs" id="day-kind">
+      <label class="kind-tab"><input type="radio" name="day-kind" value="brl" checked><span>Renda em R$</span></label>
+      <label class="kind-tab"><input type="radio" name="day-kind" value="upwork"><span>Upwork (US$)</span></label>
+    </div>
+
     <label>
       Source
-      <input id="day-source" type="text" placeholder="Salary, freelance, dividend…" autocomplete="off">
+      <input id="day-source" type="text" placeholder="Salário, cliente, dividendo…" autocomplete="off">
     </label>
     <label>
       Category
-      <input id="day-category" type="text" list="category-list" autocomplete="off" placeholder="Type a new one or pick an existing">
+      <input id="day-category" type="text" list="category-list" autocomplete="off" placeholder="Nova ou já existente">
     </label>
-    <label>
-      Gross
+
+    <label id="field-gross">
+      Bruto (R$)
       <input id="day-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
     </label>
-    <div class="two-col">
-      <label class="checkbox-label received">
-        <input id="day-received" type="checkbox">
-        <span>Recebido</span>
+
+    <div id="fields-upwork" class="hidden">
+      <label>
+        Net das semanas na Upwork (US$)
+        <input id="day-usd" type="text" inputmode="decimal" autocomplete="off" placeholder="393,89 + 393,89 + 393,89">
+        <small class="muted">Pode somar as semanas com “+”. É o valor que a Upwork mostra depois da service fee.</small>
       </label>
-      <label class="checkbox-label upwork">
-        <input id="day-upwork" type="checkbox">
-        <span>Upwork −15%</span>
+      <label>
+        Câmbio — VET da Wise
+        <input id="day-rate" type="text" inputmode="decimal" autocomplete="off" placeholder="5,0588">
+        <small class="muted">O VET já inclui IOF e tarifa.</small>
       </label>
     </div>
-    <p class="net-preview" id="day-net-preview">Líquido —</p>
+
+    <label class="checkbox-label received">
+      <input id="day-received" type="checkbox">
+      <span>Recebido</span>
+    </label>
+
+    <div class="statement" id="day-statement"></div>
     <label>
       Notes
       <input id="day-notes" type="text" autocomplete="off" placeholder="optional">
@@ -236,7 +275,7 @@
       <!-- type="button" keeps Cancel out of the way: the first submit button in a
            form is the one Enter activates, and that has to be "Add entry". -->
       <button type="button" id="day-cancel" class="ghost">Cancel</button>
-      <button id="day-save" value="save" class="primary">Add entry</button>
+      <button id="day-save" value="save" class="primary">Adicionar</button>
     </menu>
   </form>
 </dialog>

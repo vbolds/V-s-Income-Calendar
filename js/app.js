@@ -2,11 +2,11 @@
 // rolling-window summary, local draft autosave, and the one-commit Save button.
 
 import { CalendarView, escapeHtml } from './calendar.js';
-import { describeDeductions, netOf } from './deductions.js';
+import { DEFAULT_RATES, statement } from './deductions.js';
 import { hueStyle } from './palette.js';
 import { MONTH_NAMES, addMonths, formatLong, todayISO } from './dates.js';
 import { GitHubError, getFile, putFile, verifyAccess } from './github.js';
-import { formatAmount, parseAmount } from './money.js';
+import { formatAmount, formatUsd, parseAmount, parseAmountSum, parseRate } from './money.js';
 import {
   Store,
   categoriesOf,
@@ -48,6 +48,8 @@ let table;
 let range = { from: addMonths(todayISO(), -1), to: todayISO() };
 let categoryFilter = '';
 let flagFilter = '';
+let rates = { ...DEFAULT_RATES };
+let editingId = null;
 let draftTimer = null;
 let saving = false;
 
@@ -86,10 +88,14 @@ function showApp() {
     table = new TableView({
       bodyEl: el('entries-body'),
       filterEl: el('table-filter'),
-      footGrossEl: el('foot-gross'),
-      footNetEl: el('foot-net'),
+      foot: {
+        gross: el('foot-gross'),
+        landed: el('foot-landed'),
+        net: el('foot-net'),
+      },
       store,
       onDuplicate: duplicateEntry,
+      onEdit: (entry) => openDayDialog(entry.date, entry),
     });
     store.subscribe(() => {
       renderAll();
@@ -163,7 +169,9 @@ async function loadFromGitHub() {
   setStatus('Loading…');
   try {
     const { text, sha } = await getFile({ ...config, token });
-    const { entries, dropped } = text ? parseFile(text) : { entries: [], dropped: 0 };
+    const parsed = text ? parseFile(text) : { entries: [], dropped: 0, rates: { ...DEFAULT_RATES } };
+    const { entries, dropped } = parsed;
+    rates = parsed.rates;
     store.setRemote(entries, sha);
 
     if (dropped) toast(`${dropped} entr${dropped === 1 ? 'y was' : 'ies were'} skipped — no valid date.`, 'warn');
@@ -222,7 +230,7 @@ async function save() {
     const result = await putFile({
       ...config,
       token,
-      text: serializeFile(store.entries),
+      text: serializeFile(store.entries, rates),
       sha: store.sha,
       message: commitMessage(),
     });
@@ -261,7 +269,7 @@ async function handleConflict() {
     const result = await putFile({
       ...config,
       token,
-      text: serializeFile(store.entries),
+      text: serializeFile(store.entries, rates),
       sha: fresh.sha,
       message: commitMessage(),
     });
@@ -351,6 +359,7 @@ function wireApp() {
   });
 
   wireDayDialog();
+  wireRatesDialog();
 
   window.addEventListener('beforeunload', (event) => {
     if (!store.isDirty()) return;
@@ -374,7 +383,7 @@ function duplicateEntry(entry) {
     ...entry,
     id: undefined,
     date,
-    // A copy landing in the future is a plan, not money received.
+    // Uma cópia que cai no futuro é plano, não dinheiro recebido.
     received: date <= todayISO(),
   });
 
@@ -456,55 +465,155 @@ function handleDayClick(iso, entryId) {
   openDayDialog(iso);
 }
 
-function openDayDialog(iso) {
-  el('day-dialog-title').textContent = `Add income — ${formatLong(iso)}`;
-  el('day-date').value = iso;
-  el('day-source').value = '';
-  el('day-category').value = categoryFilter && categoryFilter !== NO_CATEGORY ? categoryFilter : '';
-  el('day-gross').value = '';
-  // Income dated today or earlier is normally already in hand; anything ahead is
-  // being planned. Either way the box is right there to change.
-  el('day-received').checked = iso <= todayISO();
-  el('day-upwork').checked = false;
-  el('day-notes').value = '';
-  updateNetPreview();
+// Serve para criar e para editar: passando uma entrada, os campos vêm dela.
+function openDayDialog(iso, entry = null) {
+  editingId = entry ? entry.id : null;
+  const kind = entry ? entry.kind : 'brl';
+
+  el('day-dialog-title').textContent = entry
+    ? `Editar — ${formatLong(entry.date)}`
+    : `Nova renda — ${formatLong(iso)}`;
+  el('day-save').textContent = entry ? 'Salvar' : 'Adicionar';
+
+  el('day-date').value = entry ? entry.date : iso;
+  el('day-source').value = entry ? entry.source : '';
+  el('day-category').value = entry
+    ? entry.category
+    : (categoryFilter && categoryFilter !== NO_CATEGORY ? categoryFilter : '');
+  el('day-gross').value = entry && entry.kind === 'brl' && entry.gross != null
+    ? String(entry.gross).replace('.', ',') : '';
+  el('day-usd').value = entry && entry.usdNet != null ? String(entry.usdNet).replace('.', ',') : '';
+  el('day-rate').value = entry && entry.rate != null ? String(entry.rate).replace('.', ',') : '';
+  el('day-notes').value = entry ? entry.notes : '';
+  // Renda datada de hoje ou antes normalmente já caiu; o que está à frente é
+  // plano. De qualquer forma a caixa está logo ali para mudar.
+  el('day-received').checked = entry ? entry.received : iso <= todayISO();
+
+  for (const radio of document.querySelectorAll('input[name="day-kind"]')) {
+    radio.checked = radio.value === kind;
+  }
+  syncKindFields();
+  updateStatement();
+
   el('day-dialog').showModal();
-  // Focus synchronously: a deferred focus() would jump the caret out of whatever
-  // field the user had already started typing in.
+  // Foco síncrono: um focus() adiado tiraria o cursor do campo em que a pessoa
+  // já começou a digitar.
   el('day-source').focus();
 }
 
-// Shows the deductions being applied as the gross is typed, so the number that
-// lands in the table is never a surprise.
-function updateNetPreview() {
-  const entry = { gross: parseAmount(el('day-gross').value), upwork: el('day-upwork').checked };
-  const money = (v) => formatAmount(v, config.currency);
-  el('day-net-preview').textContent = entry.gross == null
-    ? 'Líquido —'
-    : `Líquido ${money(netOf(entry))}   ·   ${describeDeductions(entry, money)}`;
+function currentKind() {
+  const checked = document.querySelector('input[name="day-kind"]:checked');
+  return checked ? checked.value : 'brl';
+}
+
+function syncKindFields() {
+  const upwork = currentKind() === 'upwork';
+  el('field-gross').classList.toggle('hidden', upwork);
+  el('fields-upwork').classList.toggle('hidden', !upwork);
+}
+
+// Monta a entrada a partir do que está no diálogo, sem gravar nada.
+function dialogEntry() {
+  const kind = currentKind();
+  return {
+    kind,
+    gross: kind === 'brl' ? parseAmount(el('day-gross').value) : null,
+    usdNet: kind === 'upwork' ? parseAmountSum(el('day-usd').value) : null,
+    rate: kind === 'upwork' ? parseRate(el('day-rate').value) : null,
+    rates,
+  };
+}
+
+// O extrato ao vivo: é ele que faz as vezes da calculadora, e some a dúvida
+// sobre que número vai parar na tabela.
+function updateStatement() {
+  const lines = statement(dialogEntry(), rates);
+  const box = el('day-statement');
+
+  if (!lines.length) {
+    box.innerHTML = '<p class="statement-empty">Preencha os valores para ver a conta.</p>';
+    return;
+  }
+
+  box.innerHTML = lines.map((line) => `
+    <div class="statement-line${line.total ? ' total' : ''}${line.muted ? ' muted-line' : ''}">
+      <span>${escapeHtml(line.label)}</span>
+      <b>${line.usd != null ? formatUsd(line.usd) : formatAmount(line.brl, config.currency)}</b>
+    </div>`).join('');
 }
 
 function wireDayDialog() {
   const dialog = el('day-dialog');
   el('day-cancel').addEventListener('click', () => dialog.close('cancel'));
-  el('day-gross').addEventListener('input', updateNetPreview);
-  el('day-upwork').addEventListener('change', updateNetPreview);
+
+  for (const id of ['day-gross', 'day-usd', 'day-rate']) {
+    el(id).addEventListener('input', updateStatement);
+  }
+  for (const radio of document.querySelectorAll('input[name="day-kind"]')) {
+    radio.addEventListener('change', () => { syncKindFields(); updateStatement(); });
+  }
+
   dialog.addEventListener('close', () => {
+    const id = editingId;
+    editingId = null;
     if (dialog.returnValue !== 'save') return;
+
     const date = el('day-date').value;
     if (!date) return;
-    const entry = store.add({
+
+    const fields = {
       date,
       source: el('day-source').value.trim(),
       category: el('day-category').value.trim(),
-      gross: parseAmount(el('day-gross').value),
-      upwork: el('day-upwork').checked,
       received: el('day-received').checked,
       notes: el('day-notes').value.trim(),
-    });
+      ...dialogEntry(),
+    };
+
+    if (id) {
+      store.update(id, fields);
+      table.render();
+      table.focusEntry(id, 'source');
+      return;
+    }
+
+    const entry = store.add(fields);
     table.render();
     table.focusEntry(entry.id, 'source');
   });
+}
+
+/* ---------------- taxas ---------------- */
+
+function wireRatesDialog() {
+  const dialog = el('rates-dialog');
+  el('rates-btn').addEventListener('click', () => {
+    el('rate-service').value = String(round1(rates.serviceFee * 100)).replace('.', ',');
+    el('rate-withdrawal').value = String(rates.withdrawal).replace('.', ',');
+    el('rate-tithe').value = String(round1(rates.tithe * 100)).replace('.', ',');
+    dialog.showModal();
+  });
+  el('rates-cancel').addEventListener('click', () => dialog.close('cancel'));
+
+  dialog.addEventListener('close', () => {
+    if (dialog.returnValue !== 'save') return;
+    const service = parseAmount(el('rate-service').value);
+    const withdrawal = parseAmount(el('rate-withdrawal').value);
+    const tithe = parseAmount(el('rate-tithe').value);
+
+    rates = {
+      serviceFee: service == null ? rates.serviceFee : service / 100,
+      withdrawal: withdrawal == null ? rates.withdrawal : withdrawal,
+      tithe: tithe == null ? rates.tithe : tithe / 100,
+    };
+    // Só entradas novas usam as taxas novas; as que existem guardam as suas.
+    store.emit();
+    toast('Taxas atualizadas. Valem para entradas novas.');
+  });
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
 }
 
 /* ---------------- rendering ---------------- */
@@ -570,9 +679,9 @@ function renderDeductionLine(result) {
     return;
   }
 
-  const parts = [`Bruto ${money(result.gross)}`, `− dízimo 10% ${money(result.titheTotal)}`];
-  if (result.upworkTotal) parts.push(`− Upwork 15% ${money(result.upworkTotal)}`);
-  parts.push(`= ${money(result.net)}`);
+  const parts = [`Bruto ${money(result.gross)}`];
+  if (result.feesTotal) parts.push(`− taxas ${money(result.feesTotal)}`);
+  parts.push(`− dízimo ${money(result.titheTotal)}`, `= ${money(result.net)}`);
   line.textContent = parts.join('  ');
 }
 

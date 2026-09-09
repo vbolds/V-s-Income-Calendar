@@ -3,20 +3,20 @@
 
 import { MONTH_NAMES, escapeHtml } from './calendar.js';
 import { isValidISO } from './dates.js';
-import { describeDeductions } from './deductions.js';
-import { formatAmount, parseAmount, sum, toInputString } from './money.js';
+import { statement } from './deductions.js';
+import { formatAmount, formatUsd as usd, parseAmount, sum, toInputString } from './money.js';
 import { categoryHue, hueStyle } from './palette.js';
 import { matchesCategory, matchesFlag } from './summary.js';
 
 export class TableView {
-  constructor({ bodyEl, filterEl, footGrossEl, footNetEl, store, onChange, onDuplicate }) {
+  constructor({ bodyEl, filterEl, foot, store, onChange, onDuplicate, onEdit }) {
     this.bodyEl = bodyEl;
     this.filterEl = filterEl;
-    this.footGrossEl = footGrossEl;
-    this.footNetEl = footNetEl;
+    this.foot = foot;
     this.store = store;
     this.onChange = onChange || (() => {});
     this.onDuplicate = onDuplicate || (() => {});
+    this.onEdit = onEdit || (() => {});
     this.currency = 'BRL';
     this.filter = '';
     this.categoryFilter = '';
@@ -91,7 +91,7 @@ export class TableView {
 
     this.bodyEl.innerHTML = rows.length
       ? this.groupByMonth(rows)
-      : `<tr class="empty-row"><td colspan="9">${this.emptyMessage()}</td></tr>`;
+      : `<tr class="empty-row"><td colspan="8">${this.emptyMessage()}</td></tr>`;
 
     this.renderTotals(rows);
   }
@@ -120,12 +120,12 @@ export class TableView {
     const net = sum(entries.map((e) => e.net ?? 0));
     return `
       <tr class="month-row">
-        <td colspan="4">
+        <td colspan="5">
           <span class="month-name">${MONTH_NAMES[Number(m) - 1]} ${year}</span>
           <span class="month-count">${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}</span>
         </td>
         <td class="month-total">${formatAmount(net, this.currency)}</td>
-        <td colspan="4"></td>
+        <td colspan="2"></td>
       </tr>`;
   }
 
@@ -136,28 +136,45 @@ export class TableView {
   }
 
   renderTotals(rows = this.visibleEntries()) {
-    this.footGrossEl.textContent = formatAmount(sum(rows.map((e) => e.gross ?? 0)), this.currency);
-    this.footNetEl.textContent = formatAmount(sum(rows.map((e) => e.net ?? 0)), this.currency);
+    const money = (v) => formatAmount(v, this.currency);
+    this.foot.gross.textContent = money(sum(rows.map((e) => e.gross ?? 0)));
+    this.foot.landed.textContent = money(sum(rows.map((e) => e.landed ?? 0)));
+    this.foot.net.textContent = money(sum(rows.map((e) => e.net ?? 0)));
   }
 
   row(entry) {
+    const money = (v) => (v == null ? '—' : formatAmount(v, this.currency));
+    const isUpwork = entry.kind === 'upwork';
+
+    // O bruto é digitado quando a renda é em reais; quando vem da Upwork ele é
+    // recomposto do dólar, então aparece como texto e se edita no diálogo.
+    const grossCell = isUpwork
+      ? `<span class="derived" title="${escapeHtml(this.tip(entry))}">${money(entry.gross)}</span>`
+      : `<input type="text" inputmode="decimal" data-field="gross" value="${toInputString(entry.gross, this.currency)}" placeholder="0,00">`;
+
     return `
-      <tr data-id="${entry.id}" class="${entry.upwork ? 'is-upwork ' : ''}${entry.received ? '' : 'is-pending'}">
+      <tr data-id="${entry.id}" class="${isUpwork ? 'is-upwork ' : ''}${entry.received ? '' : 'is-pending'}">
         <td class="col-date"><input type="date" data-field="date" value="${entry.date}"></td>
-        <td class="col-source"><input type="text" data-field="source" value="${escapeHtml(entry.source)}" placeholder="Source"></td>
+        <td class="col-source"><input type="text" data-field="source" value="${escapeHtml(entry.source)}" placeholder="Fonte"></td>
         <td class="col-category"${hueStyle(entry.category)}><input type="text" data-field="category" list="category-list" value="${escapeHtml(entry.category)}" placeholder="—"></td>
-        <td class="col-amount"><input type="text" inputmode="decimal" data-field="gross" value="${toInputString(entry.gross, this.currency)}" placeholder="0,00"></td>
-        <td class="col-amount col-net" title="${escapeHtml(describeDeductions(entry, (v) => formatAmount(v, this.currency)))}">
-          ${entry.net == null ? '—' : formatAmount(entry.net, this.currency)}
-        </td>
+        <td class="col-amount col-gross">${grossCell}</td>
+        <td class="col-amount col-landed" title="${escapeHtml(this.tip(entry))}">${money(entry.landed)}</td>
+        <td class="col-amount col-net" title="${escapeHtml(this.tip(entry))}">${money(entry.net)}</td>
         <td class="col-flag col-received"><input type="checkbox" data-field="received" title="Já recebido?"${entry.received ? ' checked' : ''}></td>
-        <td class="col-flag col-upwork"><input type="checkbox" data-field="upwork" title="Upwork — mais 15% de dedução"${entry.upwork ? ' checked' : ''}></td>
-        <td class="col-notes"><input type="text" data-field="notes" value="${escapeHtml(entry.notes)}" placeholder="—"></td>
         <td class="col-actions">
-          <button type="button" class="row-action" data-action="duplicate" title="Copy to next month">⧉</button>
-          <button type="button" class="row-action row-del" data-action="delete" title="Delete entry">✕</button>
+          <button type="button" class="row-action" data-action="edit" title="Abrir e editar">✎</button>
+          <button type="button" class="row-action" data-action="duplicate" title="Copiar para o mês seguinte">⧉</button>
+          <button type="button" class="row-action row-del" data-action="delete" title="Excluir">✕</button>
         </td>
       </tr>`;
+  }
+
+  // A conta inteira em uma linha, para a dica das células calculadas.
+  tip(entry) {
+    const money = (v) => formatAmount(v, this.currency);
+    return statement(entry)
+      .map((line) => `${line.label}: ${line.usd != null ? usd(line.usd) : money(line.brl)}`)
+      .join('  ·  ');
   }
 
   handleInput(event) {
@@ -168,10 +185,6 @@ export class TableView {
 
     if (field === 'gross') {
       this.store.update(id, { gross: parseAmount(input.value) });
-      this.refreshNetCell(input.closest('tr'), id);
-    } else if (field === 'upwork') {
-      this.store.update(id, { upwork: input.checked });
-      input.closest('tr').classList.toggle('is-upwork', input.checked);
       this.refreshNetCell(input.closest('tr'), id);
     } else if (field === 'received') {
       this.store.update(id, { received: input.checked });
@@ -219,15 +232,20 @@ export class TableView {
     }
   }
 
-  // The net is not an input, so it is repainted in place while the row is being
-  // edited and the table itself is deliberately not being rebuilt.
+  // As colunas calculadas não são campos, então são repintadas no lugar enquanto
+  // a linha está sendo editada e a tabela de propósito não é reconstruída.
   refreshNetCell(row, id) {
-    const cell = row.querySelector('.col-net');
-    if (!cell) return;
     const entry = this.store.entries.find((e) => e.id === id);
     if (!entry) return;
-    cell.textContent = entry.net == null ? '—' : formatAmount(entry.net, this.currency);
-    cell.title = describeDeductions(entry, (v) => formatAmount(v, this.currency));
+    const money = (v) => (v == null ? '—' : formatAmount(v, this.currency));
+    const tip = this.tip(entry);
+
+    for (const [selector, value] of [['.col-landed', entry.landed], ['.col-net', entry.net]]) {
+      const cell = row.querySelector(selector);
+      if (!cell) continue;
+      cell.textContent = money(value);
+      cell.title = tip;
+    }
   }
 
   handleClick(event) {
@@ -239,6 +257,10 @@ export class TableView {
 
     if (button.dataset.action === 'duplicate') {
       this.onDuplicate(entry);
+      return;
+    }
+    if (button.dataset.action === 'edit') {
+      this.onEdit(entry);
       return;
     }
 

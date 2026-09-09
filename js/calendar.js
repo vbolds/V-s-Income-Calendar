@@ -110,7 +110,7 @@ export class CalendarView {
     let body = '';
     if (entries.length) {
       const chips = entries.slice(0, MAX_CHIPS).map((e) => `
-        <span class="chip${e.upwork ? ' upwork' : ''}${e.received ? '' : ' pending'}" data-entry-id="${e.id}"
+        <span class="chip${e.kind === 'upwork' ? ' upwork' : ''}${e.received ? '' : ' pending'}" data-entry-id="${e.id}"
           title="${chipTitle(e)}">
           <em>${escapeHtml(e.source || 'Income')}</em>
           <b>${formatCompact(e.net ?? e.gross ?? 0, this.currency)}</b>
@@ -137,7 +137,7 @@ export class CalendarView {
 
 function chipTitle(entry) {
   const parts = [entry.received ? 'Recebido' : 'Ainda não recebido'];
-  if (entry.upwork) parts.push('Upwork −15%');
+  if (entry.kind === 'upwork') parts.push('Upwork');
   if (entry.category) parts.push(entry.category);
   return escapeHtml(parts.join(' · '));
 }

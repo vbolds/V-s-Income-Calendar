@@ -6,13 +6,13 @@
 //   * the Save button (see app.js) — the only thing that commits to GitHub.
 
 import { isValidISO, todayISO } from './dates.js';
-import { netOf } from './deductions.js';
+import { DEFAULT_RATES, computeEntry } from './deductions.js';
 import { round2 } from './money.js';
 
 const CONFIG_KEY = 'incomeCalendar.config';
 const TOKEN_KEY = 'incomeCalendar.token';
 const DRAFT_KEY = 'incomeCalendar.draft';
-const FILE_VERSION = 1;
+const FILE_VERSION = 2;
 
 export const DEFAULT_CONFIG = {
   owner: '',
@@ -67,25 +67,47 @@ export function newId() {
   return `e${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function makeEntry(partial = {}) {
+export function makeEntry(partial = {}, fallbackRates = DEFAULT_RATES) {
   const date = partial.date || '';
-  const gross = partial.gross == null ? null : round2(partial.gross);
-  const upwork = partial.upwork === true;
-  return {
+  const kind = partial.kind === 'upwork' ? 'upwork' : 'brl';
+
+  const base = {
     id: partial.id || newId(),
     date,
     source: partial.source || '',
     category: partial.category || '',
-    gross,
-    upwork,
-    // Never taken from the caller: the net is always the gross minus the
-    // deductions, so it cannot drift away from the numbers it is made of.
-    net: netOf({ gross, upwork }),
+    kind,
+    // Digitado: em reais quando é renda daqui, em dólar mais o VET quando vem
+    // da Upwork.
+    gross: kind === 'brl' && partial.gross != null ? round2(partial.gross) : null,
+    usdNet: kind === 'upwork' && partial.usdNet != null ? round2(partial.usdNet) : null,
+    rate: kind === 'upwork' && partial.rate != null ? Number(partial.rate) : null,
+    // As taxas ficam gravadas na entrada: mudar uma taxa hoje não pode
+    // reescrever o que já aconteceu.
+    rates: { ...DEFAULT_RATES, ...fallbackRates, ...(partial.rates || {}) },
+  };
+
+  return {
+    ...base,
+    // Tudo abaixo é calculado, nunca aceito de quem chama.
+    ...derive(base),
     // Unstated means "decide from the date": money dated today or earlier has
     // normally arrived, money dated ahead is still expected. This is what makes
     // entry files written before the flag existed read sensibly.
     received: partial.received === undefined ? date <= todayISO() : partial.received === true,
     notes: partial.notes || '',
+  };
+}
+
+// gross/tithe/landed/net saem sempre das regras, para não descolarem dos
+// números de que são feitos.
+function derive(entry) {
+  const c = computeEntry(entry, entry.rates);
+  return {
+    gross: entry.kind === 'upwork' ? c.gross : entry.gross,
+    tithe: c.tithe,
+    landed: c.landed,
+    net: c.net,
   };
 }
 
@@ -102,7 +124,7 @@ export function categoriesOf(entries) {
 // Entries with a bad shape are dropped rather than allowed to break the views;
 // the count of what was dropped is reported so nothing disappears silently.
 export function parseFile(text) {
-  if (!text || !text.trim()) return { entries: [], dropped: 0 };
+  if (!text || !text.trim()) return { entries: [], dropped: 0, rates: { ...DEFAULT_RATES } };
 
   let data;
   try {
@@ -114,6 +136,9 @@ export function parseFile(text) {
   const raw = Array.isArray(data) ? data : Array.isArray(data.entries) ? data.entries : null;
   if (!raw) throw new Error('The data file does not contain an "entries" list.');
 
+  // As taxas vigentes moram no arquivo, não no navegador, para valerem em todos
+  // os aparelhos. Elas só servem de padrão para entradas novas.
+  const rates = { ...DEFAULT_RATES, ...(data.settings && data.settings.rates) };
   const entries = [];
   let dropped = 0;
   for (const item of raw) {
@@ -121,37 +146,47 @@ export function parseFile(text) {
       dropped += 1;
       continue;
     }
-    // Fields added over time simply default when missing. A stored net is
-    // deliberately ignored: it is recalculated from the gross on every load, so
-    // the rules are the single source of truth. Files that still carry the old
-    // per-entry "tithe" flag load fine — every income is tithed now.
+    // Campos calculados no arquivo são ignorados de propósito: tudo é refeito
+    // pelas regras a cada carga. Arquivos antigos, que só tinham um bruto em
+    // reais e um flag "upwork", entram como renda em reais — o formato Upwork
+    // precisa do valor em dólar e do VET, que eles não têm.
+    const kind = item.kind === 'upwork' ? 'upwork' : 'brl';
     entries.push(makeEntry({
       id: typeof item.id === 'string' ? item.id : undefined,
       date: item.date,
       source: typeof item.source === 'string' ? item.source : '',
       category: typeof item.category === 'string' ? item.category : '',
+      kind,
       gross: Number.isFinite(item.gross) ? item.gross : null,
-      upwork: item.upwork === true,
+      usdNet: Number.isFinite(item.usdNet) ? item.usdNet : null,
+      rate: Number.isFinite(item.rate) ? item.rate : null,
+      rates: item.rates && typeof item.rates === 'object' ? item.rates : undefined,
       received: typeof item.received === 'boolean' ? item.received : undefined,
       notes: typeof item.notes === 'string' ? item.notes : '',
-    }));
+    }, rates));
   }
-  return { entries: sortEntries(entries), dropped };
+  return { entries: sortEntries(entries), dropped, rates };
 }
 
-export function serializeFile(entries) {
+export function serializeFile(entries, rates = DEFAULT_RATES) {
   const payload = {
     version: FILE_VERSION,
     updatedAt: new Date().toISOString(),
+    settings: { rates: { ...DEFAULT_RATES, ...rates } },
     entries: sortEntries(entries).map((e) => ({
       id: e.id,
       date: e.date,
       source: e.source,
       category: e.category,
-      gross: e.gross,
-      upwork: e.upwork,
-      // Written out for readability elsewhere (a spreadsheet, a glance at the
-      // file on GitHub); on load it is recalculated rather than trusted.
+      kind: e.kind,
+      // O que foi digitado.
+      ...(e.kind === 'upwork' ? { usdNet: e.usdNet, rate: e.rate } : { gross: e.gross }),
+      rates: e.rates,
+      // Calculados. Gravados para o arquivo se ler sozinho (numa planilha, ou
+      // olhando no GitHub); na carga são refeitos, nunca lidos daqui.
+      grossBRL: e.gross,
+      tithe: e.tithe,
+      landed: e.landed,
       net: e.net,
       received: e.received,
       notes: e.notes,
@@ -168,13 +203,16 @@ export function sortEntries(entries) {
   });
 }
 
-// Only the entries decide whether there is something to save — the file's
-// updatedAt stamp changes on every write and must not count as a change.
-// The net is left out on purpose: it is derived from the gross and the Upwork
-// flag, so recalculating it on load must never look like an unsaved edit.
+// Só o que foi digitado conta como mudança: gross/tithe/landed/net saem das
+// regras, então recalculá-los ao carregar não pode parecer uma edição pendente.
+// (Para renda em reais o próprio gross é digitado, por isso ele entra.)
 function fingerprint(entries) {
-  return JSON.stringify(sortEntries(entries)
-    .map((e) => [e.date, e.source, e.category, e.gross, e.upwork, e.received, e.notes]));
+  return JSON.stringify(sortEntries(entries).map((e) => [
+    e.date, e.source, e.category, e.kind,
+    e.kind === 'upwork' ? [e.usdNet, e.rate] : e.gross,
+    e.rates.serviceFee, e.rates.withdrawal, e.rates.tithe,
+    e.received, e.notes,
+  ]));
 }
 
 /* ---------------- store ---------------- */
@@ -226,10 +264,10 @@ export class Store {
     this.entries = this.entries.map((e) => {
       if (e.id !== id) return e;
       changed = true;
-      // Recalculated on every edit, so changing the gross or the Upwork flag
-      // moves the net with it.
+      // Refeito a cada edição: mexer no bruto, no dólar ou no VET move tudo o
+      // que vem depois.
       const merged = { ...e, ...patch };
-      return { ...merged, net: netOf(merged) };
+      return { ...merged, ...derive(merged) };
     });
     if (changed) {
       this.entries = sortEntries(this.entries);

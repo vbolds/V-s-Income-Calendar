@@ -12,7 +12,19 @@ const LOCALE_BY_CURRENCY = {
 // Accepts "1234.56", "1234,56", "1.234,56", "1,234.56", "R$ 1.234,56", "".
 // Returns a number rounded to 2 decimals, or null when there is nothing usable.
 export function parseAmount(input) {
-  if (typeof input === 'number') return Number.isFinite(input) ? round2(input) : null;
+  const n = parseNumber(input);
+  return n == null ? null : round2(n);
+}
+
+// O câmbio não é dinheiro: 5,0588 tem quatro casas e arredondar para 5,06 erraria
+// alguns reais no bruto. Mesma leitura de separadores, sem arredondar.
+export function parseRate(input) {
+  const n = parseNumber(input);
+  return n == null || n <= 0 ? null : n;
+}
+
+function parseNumber(input) {
+  if (typeof input === 'number') return Number.isFinite(input) ? input : null;
   if (input == null) return null;
 
   let s = String(input).trim().replace(/[^\d.,+-]/g, '');
@@ -42,7 +54,25 @@ export function parseAmount(input) {
   }
 
   const n = Number(s);
-  return Number.isFinite(n) ? round2(n) : null;
+  return Number.isFinite(n) ? n : null;
+}
+
+// Aceita uma soma escrita à mão — "393,89 + 393,89 + 393,89" — que é como as
+// semanas da Upwork chegam. Um valor sozinho continua funcionando igual.
+export function parseAmountSum(input) {
+  if (input == null) return null;
+  const parts = String(input).split('+').map((p) => p.trim()).filter(Boolean);
+  if (!parts.length) return null;
+
+  let total = 0;
+  let any = false;
+  for (const part of parts) {
+    const value = parseAmount(part);
+    if (value == null) continue;
+    total += value;
+    any = true;
+  }
+  return any ? round2(total) : null;
 }
 
 export function round2(n) {
@@ -70,6 +100,16 @@ export function formatAmount(n, currency = 'BRL') {
     }).format(value);
   } catch {
     return value.toFixed(2);
+  }
+}
+
+// Dólares, para as linhas do extrato da Upwork.
+export function formatUsd(n) {
+  const value = Number(n) || 0;
+  try {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(value);
+  } catch {
+    return `US$ ${value.toFixed(2)}`;
   }
 }
 
