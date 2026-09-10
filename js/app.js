@@ -471,6 +471,7 @@ function openDayDialog(iso, entry = null) {
     ? `Editar — ${formatLong(entry.date)}`
     : `Nova renda — ${formatLong(iso)}`;
   el('day-save').textContent = entry ? 'Salvar' : 'Adicionar';
+  el('day-delete').classList.toggle('hidden', !entry);
 
   el('day-date').value = entry ? entry.date : iso;
   el('day-source').value = entry ? entry.source : '';
@@ -542,6 +543,19 @@ function updateStatement() {
 function wireDayDialog() {
   const dialog = el('day-dialog');
   el('day-cancel').addEventListener('click', () => dialog.close('cancel'));
+
+  // Excluir sai pelo returnValue 'delete': quem escuta o close já ignora tudo
+  // que não seja 'save', então a remoção acontece aqui e nada é regravado.
+  el('day-delete').addEventListener('click', () => {
+    const entry = store.entries.find((e) => e.id === editingId);
+    if (!entry) return dialog.close('cancel');
+    const what = entry.source ? `"${entry.source}"` : 'esta renda';
+    if (!confirm(`Excluir ${what} de ${formatLong(entry.date)}?`)) return;
+    store.remove(entry.id);
+    dialog.close('delete');
+    table.render();
+    toast('Renda excluída.');
+  });
 
   for (const id of ['day-gross', 'day-usd', 'day-rate']) {
     el(id).addEventListener('input', updateStatement);

@@ -119,6 +119,12 @@ everything filled in, ready to change. The **✎** button on a table row does th
 same. It is the only way to edit an Upwork entry, since its amounts are worked
 out from the dollars and the VET rather than typed in the table.
 
+**Delete an income** — **Excluir**, at the left of the dialog's buttons, removes
+the entry you are editing; it asks first, naming the income and its date. It is
+only there when you are editing, never when adding. The **✕** button on a table
+row does the same thing. Like every other edit, a deletion is only local until
+you press **Save** — until then, **Reload** brings it back.
+
 **Edit fast** — the table is built for speed: type straight into any cell, and
 press <kbd>Enter</kbd> to jump down the same column. Amounts accept whatever you
 type: `1.234,56`, `1234.56`, or `1000`. Only the **gross** is typed — the net is

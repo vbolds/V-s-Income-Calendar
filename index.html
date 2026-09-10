@@ -277,9 +277,12 @@
       <input id="day-notes" type="text" autocomplete="off" placeholder="optional">
     </label>
     <menu>
-      <!-- type="button" keeps Cancel out of the way: the first submit button in a
-           form is the one Enter activates, and that has to be "Add entry". -->
-      <button type="button" id="day-cancel" class="ghost">Cancel</button>
+      <!-- type="button" mantém Excluir e Cancelar fora do caminho: o primeiro
+           botão de submit do formulário é o que o Enter aciona, e esse tem que
+           ser o de salvar. -->
+      <button type="button" id="day-delete" class="ghost danger hidden">Excluir</button>
+      <span class="menu-spacer"></span>
+      <button type="button" id="day-cancel" class="ghost">Cancelar</button>
       <button id="day-save" value="save" class="primary">Adicionar</button>
     </menu>
   </form>

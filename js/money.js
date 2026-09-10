@@ -16,11 +16,31 @@ export function parseAmount(input) {
   return n == null ? null : round2(n);
 }
 
-// O câmbio não é dinheiro: 5,0588 tem quatro casas e arredondar para 5,06 erraria
-// alguns reais no bruto. Mesma leitura de separadores, sem arredondar.
+// O câmbio não é dinheiro e precisa da sua própria leitura, por dois motivos:
+// não pode ser arredondado a centavos (5,0588 viraria 5,06) e o separador é
+// SEMPRE decimal. A regra de dinheiro, em que um separador seguido de três
+// dígitos é de milhar, lia "5,063" como cinco mil e sessenta e três.
 export function parseRate(input) {
-  const n = parseNumber(input);
-  return n == null || n <= 0 ? null : n;
+  if (typeof input === 'number') return Number.isFinite(input) && input > 0 ? input : null;
+  if (input == null) return null;
+
+  let s = String(input).trim().replace(/[^\d.,]/g, '');
+  if (!s) return null;
+
+  const lastDot = s.lastIndexOf('.');
+  const lastComma = s.lastIndexOf(',');
+
+  if (lastDot !== -1 && lastComma !== -1) {
+    // Os dois presentes: o da direita decide, o outro é separador de milhar.
+    const decimal = lastDot > lastComma ? '.' : ',';
+    s = s.split(decimal === '.' ? ',' : '.').join('');
+    s = s.replace(decimal, '.');
+  } else {
+    s = s.replace(',', '.');
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 function parseNumber(input) {
