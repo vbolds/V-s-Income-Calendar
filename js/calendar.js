@@ -26,8 +26,8 @@ export class CalendarView {
     this.gridEl.addEventListener('click', (event) => {
       const cell = event.target.closest('[data-date]');
       if (!cell) return;
-      // Clicking an entry chip jumps to that row in the table; clicking anywhere
-      // else on the day adds a new entry for that date.
+      // Clicar num income abre ele para editar; clicar em qualquer outro lugar
+      // do dia abre um lançamento novo naquela data.
       const chip = event.target.closest('[data-entry-id]');
       this.onDayClick(cell.dataset.date, chip ? chip.dataset.entryId : null);
     });

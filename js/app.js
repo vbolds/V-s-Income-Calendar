@@ -454,15 +454,12 @@ function syncMonthControls() {
 
 /* ---------------- day dialog ---------------- */
 
+// Clicar num income abre a mesma janela do lançamento, já preenchida; clicar em
+// qualquer outro lugar do dia abre em branco para lançar naquela data.
 function handleDayClick(iso, entryId) {
-  if (entryId) {
-    el('table-filter').value = '';
-    table.filter = '';
-    table.render();
-    table.focusEntry(entryId, 'source');
-    return;
-  }
-  openDayDialog(iso);
+  const entry = entryId && store.entries.find((e) => e.id === entryId);
+  if (entry) openDayDialog(entry.date, entry);
+  else openDayDialog(iso);
 }
 
 // Serve para criar e para editar: passando uma entrada, os campos vêm dela.

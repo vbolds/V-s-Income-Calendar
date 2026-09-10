@@ -110,9 +110,14 @@ stored in that browser only and never leaves it except to talk to github.com.
 
 ## Using it
 
-**Add income** — click any day on the calendar, or press **+ Add entry** in the
-table. Several incomes can land on the same day; each is its own entry.
-<kbd>Enter</kbd> in the dialog adds the entry.
+**Add income** — click an empty part of any day on the calendar, or press
+**+ Add entry** in the table. Several incomes can land on the same day; each is
+its own entry. <kbd>Enter</kbd> in the dialog adds the entry.
+
+**Edit an income** — click it on the calendar and the same dialog opens with
+everything filled in, ready to change. The **✎** button on a table row does the
+same. It is the only way to edit an Upwork entry, since its amounts are worked
+out from the dollars and the VET rather than typed in the table.
 
 **Edit fast** — the table is built for speed: type straight into any cell, and
 press <kbd>Enter</kbd> to jump down the same column. Amounts accept whatever you
