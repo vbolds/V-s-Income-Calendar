@@ -125,7 +125,12 @@
         <div class="split-card tithe">
           <span class="split-label">◈ Dízimo</span>
           <span class="split-value" id="total-tithe">—</span>
-          <span class="split-count">10% de todo o bruto</span>
+          <span class="split-count" id="tithe-note">10% de todo o bruto</span>
+        </div>
+        <div class="split-card tax">
+          <span class="split-label">▤ Imposto</span>
+          <span class="split-value" id="total-tax">—</span>
+          <span class="split-count" id="tax-note">6% do faturamento</span>
         </div>
       </div>
       <p class="deduction-line" id="deduction-line"></p>
@@ -168,21 +173,21 @@
               <th class="col-date">Date</th>
               <th class="col-source">Source</th>
               <th class="col-category">Category</th>
-              <th class="col-amount" title="Base do dízimo, em reais">Bruto</th>
-              <th class="col-amount" title="O que entra na conta">Caiu</th>
-              <th class="col-amount" title="Caiu − dízimo">Livre</th>
               <th class="col-flag" title="Já recebido?">Recebido</th>
+              <th class="col-amount" title="Base do dízimo e do imposto, em reais">Bruto</th>
+              <th class="col-amount" title="O que entra na conta">Caiu</th>
+              <th class="col-amount col-net" title="Caiu − dízimo − imposto">Livre</th>
               <th class="col-actions"></th>
             </tr>
           </thead>
           <tbody id="entries-body"></tbody>
           <tfoot>
             <tr>
-              <td colspan="3" class="foot-label">Shown total</td>
+              <td colspan="4" class="foot-label">Shown total</td>
               <td class="col-amount" id="foot-gross">—</td>
               <td class="col-amount" id="foot-landed">—</td>
-              <td class="col-amount" id="foot-net">—</td>
-              <td colspan="2"></td>
+              <td class="col-amount col-net" id="foot-net">—</td>
+              <td class="col-actions"></td>
             </tr>
           </tfoot>
         </table>
@@ -215,6 +220,11 @@
     <label>
       Dízimo (%)
       <input id="rate-tithe" type="text" inputmode="decimal" autocomplete="off">
+    </label>
+    <label>
+      Imposto do CNPJ (%)
+      <input id="rate-tax" type="text" inputmode="decimal" autocomplete="off">
+      <small class="muted">Sobre o faturamento, na mesma base do dízimo. Vale só nas rendas marcadas como nota fiscal.</small>
     </label>
     <menu>
       <button type="button" id="rates-cancel" class="ghost">Cancelar</button>
@@ -266,10 +276,16 @@
       </label>
     </div>
 
-    <label class="checkbox-label received">
-      <input id="day-received" type="checkbox">
-      <span>Recebido</span>
-    </label>
+    <div class="checkbox-row">
+      <label class="checkbox-label received">
+        <input id="day-received" type="checkbox">
+        <span>Recebido</span>
+      </label>
+      <label class="checkbox-label taxed" title="Entra no faturamento do CNPJ, com nota fiscal">
+        <input id="day-taxed" type="checkbox" checked>
+        <span>Nota fiscal</span>
+      </label>
+    </div>
 
     <div class="statement" id="day-statement"></div>
     <label>

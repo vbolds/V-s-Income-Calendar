@@ -486,6 +486,9 @@ function openDayDialog(iso, entry = null) {
   // Renda datada de hoje ou antes normalmente já caiu; o que está à frente é
   // plano. De qualquer forma a caixa está logo ali para mudar.
   el('day-received').checked = entry ? entry.received : iso <= todayISO();
+  // Nova renda já vem como faturamento, que é o caso normal; desmarcar é para a
+  // exceção (algo que não passa pelo CNPJ).
+  el('day-taxed').checked = entry ? entry.taxed !== false : true;
 
   for (const radio of document.querySelectorAll('input[name="day-kind"]')) {
     radio.checked = radio.value === kind;
@@ -518,6 +521,7 @@ function dialogEntry() {
     gross: kind === 'brl' ? parseAmount(el('day-gross').value) : null,
     usdNet: kind === 'upwork' ? parseAmountSum(el('day-usd').value) : null,
     rate: kind === 'upwork' ? parseRate(el('day-rate').value) : null,
+    taxed: el('day-taxed').checked,
     rates,
   };
 }
@@ -560,6 +564,7 @@ function wireDayDialog() {
   for (const id of ['day-gross', 'day-usd', 'day-rate']) {
     el(id).addEventListener('input', updateStatement);
   }
+  el('day-taxed').addEventListener('change', updateStatement);
   for (const radio of document.querySelectorAll('input[name="day-kind"]')) {
     radio.addEventListener('change', () => { syncKindFields(); updateStatement(); });
   }
@@ -603,6 +608,7 @@ function wireRatesDialog() {
     el('rate-withdrawal').value = String(rates.withdrawal).replace('.', ',');
     el('rate-wise').value = String(round2pct(rates.wiseFee * 100)).replace('.', ',');
     el('rate-tithe').value = String(round1(rates.tithe * 100)).replace('.', ',');
+    el('rate-tax').value = String(round2pct(rates.tax * 100)).replace('.', ',');
     dialog.showModal();
   });
   el('rates-cancel').addEventListener('click', () => dialog.close('cancel'));
@@ -613,12 +619,14 @@ function wireRatesDialog() {
     const withdrawal = parseAmount(el('rate-withdrawal').value);
     const wise = parseRate(el('rate-wise').value);
     const tithe = parseAmount(el('rate-tithe').value);
+    const tax = parseAmount(el('rate-tax').value);
 
     rates = {
       serviceFee: service == null ? rates.serviceFee : service / 100,
       withdrawal: withdrawal == null ? rates.withdrawal : withdrawal,
       wiseFee: wise == null ? rates.wiseFee : wise / 100,
       tithe: tithe == null ? rates.tithe : tithe / 100,
+      tax: tax == null ? rates.tax : tax / 100,
     };
     // Só entradas novas usam as taxas novas; as que existem guardam as suas.
     store.emit();
@@ -628,6 +636,11 @@ function wireRatesDialog() {
 
 function round1(n) {
   return Math.round(n * 10) / 10;
+}
+
+// "6%", "6,5%" — sem zeros à toa, para caber na legenda do card.
+function pctLabel(rate) {
+  return `${String(round2pct(rate * 100)).replace('.', ',')}%`;
 }
 
 // A tarifa da Wise tem duas casas (0,86%), então não pode ser arredondada como
@@ -670,6 +683,11 @@ function renderSummary() {
   el('total-pending').textContent = formatAmount(result.pendingNet, config.currency);
   el('count-pending').textContent = entryCount(result.pendingCount);
   el('total-tithe').textContent = formatAmount(result.titheTotal, config.currency);
+  el('tithe-note').textContent = `${pctLabel(rates.tithe)} de todo o bruto`;
+  el('total-tax').textContent = formatAmount(result.taxTotal, config.currency);
+  el('tax-note').textContent = result.count && result.taxedCount < result.count
+    ? `${pctLabel(rates.tax)} · ${result.taxedCount} de ${result.count} com nota`
+    : `${pctLabel(rates.tax)} do faturamento`;
   renderDeductionLine(result);
 
   for (const card of document.querySelectorAll('[data-flag]')) {
@@ -701,7 +719,9 @@ function renderDeductionLine(result) {
 
   const parts = [`Bruto ${money(result.gross)}`];
   if (result.feesTotal) parts.push(`− taxas ${money(result.feesTotal)}`);
-  parts.push(`− dízimo ${money(result.titheTotal)}`, `= ${money(result.net)}`);
+  parts.push(`− dízimo ${money(result.titheTotal)}`);
+  if (result.taxTotal) parts.push(`− imposto ${money(result.taxTotal)}`);
+  parts.push(`= ${money(result.net)}`);
   line.textContent = parts.join('  ');
 }
 

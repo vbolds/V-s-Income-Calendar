@@ -11,6 +11,8 @@
   --net-soft: #e4f4ec;
   --tithe: #0a6b3d;
   --tithe-soft: #d3efdf;
+  --tax: #8a5a1f;
+  --tax-soft: #f7eddb;
   --upwork: #2f7d6b;
   --border-strong: #c3c9d2;
   --cat-s: 58%;
@@ -40,6 +42,8 @@
     --net-soft: #16332a;
     --tithe: #5fe0a8;
     --tithe-soft: #12402d;
+    --tax: #d9a860;
+    --tax-soft: #3a2d18;
     --upwork: #64c9b4;
     --border-strong: #454b57;
     --cat-s: 62%;
@@ -309,6 +313,8 @@ div.split-card { cursor: default; }
 .split-card.pending { border-style: dashed; }
 .split-card.tithe { border-color: color-mix(in srgb, var(--tithe) 40%, transparent); }
 .split-card.tithe .split-value { color: var(--tithe); }
+.split-card.tax { border-color: color-mix(in srgb, var(--tax) 40%, transparent); }
+.split-card.tax .split-value { color: var(--tax); }
 
 /* The card you are filtering by reads as pressed. */
 .split-card.active {
@@ -502,9 +508,17 @@ div.split-card { cursor: default; }
 
 /* Wide enough that no column gets crushed; the pane scrolls sideways for the
    last few, and the action buttons stay pinned so they never scroll away. */
-.entries-table { min-width: 712px; }
+.entries-table {
+  min-width: 790px;
+  /* Um valor só para a largura da coluna de botões: ela é o que fica pinado na
+     direita, e a coluna do Livre se encosta nela por esta mesma medida. Quando
+     as duas discordavam, os botões cobriam o último dígito do Livre. */
+  --actions-w: 76px;
+}
 
-.col-amount { text-align: right; min-width: 78px; }
+/* Larga o bastante para "R$ 12.258,33" sem quebrar: um valor cortado ao meio
+   é pior do que rolar a tabela de lado. */
+.col-amount { text-align: right; min-width: 96px; white-space: nowrap; }
 .col-amount input { text-align: right; font-variant-numeric: tabular-nums; }
 .col-date { width: 120px; }
 .col-source { min-width: 94px; }
@@ -523,15 +537,34 @@ div.split-card { cursor: default; }
 .col-tithe-cell { color: var(--tithe); }
 .col-net { font-weight: 700; color: var(--net); }
 tr.is-pending .col-landed,
-tr.is-pending .col-net,
 tr.is-pending .col-gross .derived { font-style: italic; opacity: 0.75; }
+tr.is-pending .col-net {
+  font-style: italic;
+  color: color-mix(in srgb, var(--net) 62%, var(--muted));
+}
 .col-flag input { width: 16px; height: 16px; cursor: pointer; }
 .col-upwork input { accent-color: var(--upwork); }
 .col-received input { accent-color: var(--net); }
-/* Nine columns rarely fit beside the calendar, so the row's buttons are pinned
-   to the right edge of the scroll area and stay reachable without scrolling. */
+/* As colunas não cabem todas ao lado do calendário, então o que é pinado na
+   direita é o que mais importa: o Livre, que é a resposta da tabela, e os
+   botões da linha. Bruto e Caiu é que passam por baixo ao rolar de lado.
+   Recebido foi para antes dos valores justamente para não ficar soterrado. */
+.col-net, .month-total, #foot-net {
+  position: sticky;
+  right: var(--actions-w);
+  /* Largura fixa, e não mínima: a coluna pinada não pode encolher com o resto
+     da tabela, senão o valor sai cortado justamente onde ele mais importa. */
+  width: 116px;
+  min-width: 116px;
+  background: var(--surface);
+  box-shadow: -7px 0 7px -7px rgba(0, 0, 0, 0.25);
+}
+.month-row .month-total { background: var(--surface-2); }
+th.col-net { z-index: 2; }
+
 .col-actions {
-  width: 58px;
+  width: var(--actions-w);
+  min-width: var(--actions-w);
   white-space: nowrap;
   text-align: right;
   position: sticky;
@@ -630,6 +663,14 @@ tr.is-pending .col-source input { font-style: italic; color: var(--muted); }
 .day-dialog-inner label input { display: block; width: 100%; margin-top: 4px; font-weight: 400; color: var(--text); }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+.checkbox-row { display: flex; gap: 8px; }
+.checkbox-row > label.checkbox-label { flex: 1; }
+.day-dialog-inner label.checkbox-label.taxed input { accent-color: var(--tax); }
+.day-dialog-inner label.checkbox-label.taxed:hover { border-color: var(--tax); }
+.day-dialog-inner label.checkbox-label.taxed:has(input:checked) {
+  border-color: color-mix(in srgb, var(--tax) 45%, transparent);
+  background: var(--tax-soft);
+}
 .day-dialog-inner label.checkbox-label {
   display: flex;
   align-items: center;
@@ -744,7 +785,6 @@ tr.is-pending .col-source input { font-style: italic; color: var(--muted); }
   .category-breakdown { margin-top: 10px; padding-top: 10px; }
   .totals-hero { padding: 16px 12px 18px; gap: 12px; }
   .hero-split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-  .split-card.tithe { grid-column: 1 / -1; }
   .split-card { min-width: 0; padding: 8px 12px; align-items: center; }
   .range-row { gap: 8px; }
   .range-row label.inline { flex: 1 1 140px; }

@@ -120,12 +120,12 @@ export class TableView {
     const net = sum(entries.map((e) => e.net ?? 0));
     return `
       <tr class="month-row">
-        <td colspan="5">
+        <td colspan="6">
           <span class="month-name">${MONTH_NAMES[Number(m) - 1]} ${year}</span>
           <span class="month-count">${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}</span>
         </td>
         <td class="month-total">${formatAmount(net, this.currency)}</td>
-        <td colspan="2"></td>
+        <td class="col-actions"></td>
       </tr>`;
   }
 
@@ -157,10 +157,10 @@ export class TableView {
         <td class="col-date"><input type="date" data-field="date" value="${entry.date}"></td>
         <td class="col-source"><input type="text" data-field="source" value="${escapeHtml(entry.source)}" placeholder="Fonte"></td>
         <td class="col-category"${hueStyle(entry.category)}><input type="text" data-field="category" list="category-list" value="${escapeHtml(entry.category)}" placeholder="—"></td>
+        <td class="col-flag col-received"><input type="checkbox" data-field="received" title="Já recebido?"${entry.received ? ' checked' : ''}></td>
         <td class="col-amount col-gross">${grossCell}</td>
         <td class="col-amount col-landed" title="${escapeHtml(this.tip(entry))}">${money(entry.landed)}</td>
         <td class="col-amount col-net" title="${escapeHtml(this.tip(entry))}">${money(entry.net)}</td>
-        <td class="col-flag col-received"><input type="checkbox" data-field="received" title="Já recebido?"${entry.received ? ' checked' : ''}></td>
         <td class="col-actions">
           <button type="button" class="row-action" data-action="edit" title="Abrir e editar">✎</button>
           <button type="button" class="row-action" data-action="duplicate" title="Copiar para o mês seguinte">⧉</button>

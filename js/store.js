@@ -85,6 +85,11 @@ export function makeEntry(partial = {}, fallbackRates = DEFAULT_RATES) {
     // As taxas ficam gravadas na entrada: mudar uma taxa hoje não pode
     // reescrever o que já aconteceu.
     rates: { ...DEFAULT_RATES, ...fallbackRates, ...(partial.rates || {}) },
+    // Fica no base, e não lá embaixo, porque derive() precisa dele para saber
+    // se desconta o imposto. Não dito quer dizer sim: toda renda que passa pelo
+    // CNPJ é faturamento, e é o caso das que existem hoje — assim um arquivo
+    // escrito antes do flag entra tributado, que é a realidade dele.
+    taxed: partial.taxed === undefined ? true : partial.taxed === true,
   };
 
   return {
@@ -106,6 +111,7 @@ function derive(entry) {
   return {
     gross: entry.kind === 'upwork' ? c.gross : entry.gross,
     tithe: c.tithe,
+    tax: c.tax,
     landed: c.landed,
     net: c.net,
   };
@@ -162,6 +168,7 @@ export function parseFile(text) {
       rate: Number.isFinite(item.rate) ? item.rate : null,
       rates: item.rates && typeof item.rates === 'object' ? item.rates : undefined,
       received: typeof item.received === 'boolean' ? item.received : undefined,
+      taxed: typeof item.taxed === 'boolean' ? item.taxed : undefined,
       notes: typeof item.notes === 'string' ? item.notes : '',
     }, rates));
   }
@@ -186,9 +193,11 @@ export function serializeFile(entries, rates = DEFAULT_RATES) {
       // olhando no GitHub); na carga são refeitos, nunca lidos daqui.
       grossBRL: e.gross,
       tithe: e.tithe,
+      tax: e.tax,
       landed: e.landed,
       net: e.net,
       received: e.received,
+      taxed: e.taxed,
       notes: e.notes,
     })),
   };
@@ -210,8 +219,8 @@ function fingerprint(entries) {
   return JSON.stringify(sortEntries(entries).map((e) => [
     e.date, e.source, e.category, e.kind,
     e.kind === 'upwork' ? [e.usdNet, e.rate] : e.gross,
-    e.rates.serviceFee, e.rates.withdrawal, e.rates.tithe,
-    e.received, e.notes,
+    e.rates.serviceFee, e.rates.withdrawal, e.rates.tithe, e.rates.tax,
+    e.received, e.taxed, e.notes,
   ]));
 }
 

@@ -12,7 +12,7 @@ any browser — Mac, Windows, phone — and that keeps every change forever.
   *Month back* (e.g. last day August 2nd → July 2nd to August 2nd).
 - **Net is calculated, never typed** — for income in reais you enter the gross;
   for an Upwork transfer you enter the weekly net in dollars and the Wise VET,
-  and the app works the whole chain out.
+  and the app works the whole chain out, dízimo and tax included.
 - **Received vs expected** — plan income for months ahead and flag each one as
   **Recebido** once it actually lands. The totals show both, split apart, and
   either one can be clicked to show just those entries.
@@ -143,9 +143,16 @@ pills double as the legend. Filter by one with the **Category** dropdown, or by
 clicking a category in the breakdown strip (click it again to clear). The filter
 narrows both the totals and the table.
 
-**Reading the table** — entries are grouped by month, and each month's heading
+**Reading the table** — **Livre** and the row buttons stay pinned to the right
+edge, so the answer is on screen at every width; Bruto and Caiu scroll under them
+on a narrow pane. Entries are grouped by month, and each month's heading
 carries its own net for the rows shown, so the periods separate themselves
 without any counting by eye. The headings follow the filters too.
+
+**Nota fiscal** — tick it on income that goes through the CNPJ, and the tax
+comes off that entry. It starts ticked, because that is the normal case; untick
+it for anything invoiced to nobody. The rate lives under **%** and each entry
+keeps the one it was created with.
 
 **Recebido** — tick it once the money actually arrives. Income you have not
 received yet is drawn hollow with a dashed outline on the calendar, and in
@@ -166,6 +173,7 @@ headline is the net for that period, with three figures under it:
 | **✓ Received** | Net already in hand |
 | **◷ Expected** | Net still to come |
 | **◈ Dízimo** | 10% of all the gross in the period — the amount owed |
+| **▤ Imposto** | 6% of the gross on entries marked as nota fiscal |
 
 **Click Received or Expected** to show only those entries — the headline, the table
 and the category breakdown all follow it, and the card reads as pressed. Click it
@@ -215,8 +223,11 @@ the app. Drafts are local only and never create commits.
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "updatedAt": "2026-08-22T12:00:00.000Z",
+  "settings": {
+    "rates": { "serviceFee": 0.15, "withdrawal": 2.99, "wiseFee": 0.0086, "tithe": 0.1, "tax": 0.06 }
+  },
   "entries": [
     {
       "id": "9f0c…",
@@ -225,12 +236,14 @@ the app. Drafts are local only and never create commits.
       "category": "Employment",
       "kind": "brl",
       "gross": 8000,
-      "rates": { "serviceFee": 0.15, "withdrawal": 2.99, "tithe": 0.1 },
+      "rates": { "serviceFee": 0.15, "withdrawal": 2.99, "wiseFee": 0.0086, "tithe": 0.1, "tax": 0.06 },
       "grossBRL": 8000,
       "tithe": 800,
+      "tax": 480,
       "landed": 8000,
-      "net": 7200,
+      "net": 6720,
       "received": true,
+      "taxed": true,
       "notes": ""
     }
   ]
@@ -238,7 +251,7 @@ the app. Drafts are local only and never create commits.
 ```
 
 An Upwork entry carries `"kind": "upwork"` with `usdNet` and `rate` instead of
-`gross`. The calculated fields (`grossBRL`, `tithe`, `landed`, `net`) are written
+`gross`. The calculated fields (`grossBRL`, `tithe`, `tax`, `landed`, `net`) are written
 out so the file reads well on its own — in a spreadsheet, or at a glance on
 GitHub — but on load they are always recalculated from what you typed. The rules
 decide them, never the stored numbers.
@@ -253,9 +266,13 @@ flag is written out explicitly and the date no longer decides it.
 
 ### How the net is worked out
 
-**Income in reais** — you type the gross; the dízimo is a tenth of it.
+Two percentages come off the **gross**, each on the full 100%, never one on top
+of the other: the **dízimo** (10%) and, on anything invoiced through the CNPJ,
+the **imposto** (6% of turnover — the value of the nota fiscal).
 
-    Bruto R$ 8.000,00  − dízimo R$ 800,00  = R$ 7.200,00 livre
+**Income in reais** — you type the gross; both come off it.
+
+    Bruto R$ 8.000,00  − dízimo R$ 800,00  − imposto R$ 480,00  = R$ 6.720,00 livre
 
 **Upwork** — you type the net of the weeks and the VET; everything else follows.
 The gross is recomposed by **dividing by 0,85**, never by multiplying by 1,15:
@@ -269,20 +286,23 @@ US$ 393,89 ÷ 0,85 = US$ 463,40, which is what the Upwork statement shows.
     × VET 5,0588
     = caiu na conta        R$ 7.955,32
     − dízimo               R$   945,83
-    = livre para gastar    R$ 7.009,49
+    − imposto              R$   567,50
+    = livre para gastar    R$ 6.441,99
 
 The **VET already includes IOF and Wise's fee** (5,1028 becomes 5,0588 — the
 0,86%), so nothing is taken off again after the conversion.
 
-The dízimo, though, is worked out at **the day's rate**, not at the one net of
-those fees: the VET is put back to 5,1027 before converting the gross, so the
-base is US$ 1.853,60 × 5,1027 = R$ 9.458,33 and a tenth of that is R$ 945,83.
-What lands in the account still converts at the VET itself.
+The dízimo and the imposto, though, are worked out at **the day's rate**, not at
+the one net of those fees: the VET is put back to 5,1027 before converting the
+gross, so the base is US$ 1.853,60 × 5,1027 = R$ 9.458,33 — a tenth of that is
+R$ 945,83 and 6% of it is R$ 567,50. What lands in the account still converts at
+the VET itself.
 
-Because the dízimo is a tenth of the **gross**, it comes to about 11,9% of what
-actually reaches the account: the fees come out of your side, not the tithe's.
+Because both are worked out on the **gross**, together they come to about 19% of
+what actually reaches the account, not 16%: the platform and transfer fees come
+out of your side, not out of the tithe's or the taxman's.
 
-The rates — service fee, withdrawal fee, Wise + IOF, dízimo — live under the **%** button and
+The rates — service fee, withdrawal fee, Wise + IOF, dízimo, imposto — live under the **%** button and
 are stored in the data file, so they are the same on every device. Each entry
 keeps the rates it was created with, so changing one today never rewrites what
 already happened.

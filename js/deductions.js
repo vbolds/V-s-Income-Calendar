@@ -3,7 +3,7 @@
 // Duas formas de entrada:
 //
 //   kind: 'brl'     salário e afins. Você digita o bruto em reais.
-//                   dízimo = 10% do bruto; livre = bruto − dízimo.
+//                   dízimo = 10% do bruto; livre = bruto − dízimo − imposto.
 //
 //   kind: 'upwork'  a transferência mensal. Você digita o que a Upwork mostra
 //                   como net das semanas (já sem a service fee) e o VET da Wise.
@@ -16,6 +16,10 @@
 //
 // O VET da Wise já é líquido de IOF e tarifa (5,1028 vira 5,0588, os 0,86%), por
 // isso nada mais é descontado depois da conversão.
+//
+// Dízimo e imposto saem do MESMO bruto, cada um sobre os 100%, nunca um sobre o
+// outro: o imposto do CNPJ é sobre o faturamento, que é o valor da nota, e não
+// sobre o que sobrou depois das taxas do caminho.
 
 import { round2 } from './money.js';
 
@@ -24,6 +28,7 @@ export const DEFAULT_RATES = {
   withdrawal: 2.99,   // US$ fixos por transferência para a Wise
   wiseFee: 0.0086,    // tarifa da Wise + IOF, já embutida no VET
   tithe: 0.10,        // dízimo, sobre o bruto
+  tax: 0.06,          // imposto do CNPJ, sobre o faturamento — o mesmo bruto
 };
 
 // O VET é o câmbio depois da tarifa e do IOF: 5,1028 vira 5,0588. Para o dízimo
@@ -39,8 +44,15 @@ export function ratesFor(entry, fallback = DEFAULT_RATES) {
 
 const EMPTY = {
   usdGross: null, usdFee: 0, usdWithdrawal: 0, usdSent: null, nominal: null,
-  gross: null, tithe: 0, landed: null, net: null,
+  gross: null, tithe: 0, tax: 0, landed: null, net: null,
 };
+
+// O imposto do CNPJ sai do faturamento, que é o valor da nota — o mesmo bruto
+// que serve de base para o dízimo, e não o que sobra depois das taxas. Os dois
+// percentuais mordem os mesmos 100%: nunca um sobre o outro.
+function taxOn(gross, entry, rates) {
+  return entry.taxed === false ? 0 : round2(gross * rates.tax);
+}
 
 // Devolve a conta inteira, arredondada centavo a centavo em cada etapa para que
 // os números na tela sempre fechem com o total ao lado deles.
@@ -55,12 +67,14 @@ function computeBrl(entry, rates) {
   if (gross == null) return { ...EMPTY };
 
   const tithe = round2(gross * rates.tithe);
+  const tax = taxOn(gross, entry, rates);
   return {
     ...EMPTY,
     gross,
     tithe,
+    tax,
     landed: gross,
-    net: round2(gross - tithe),
+    net: round2(gross - tithe - tax),
   };
 }
 
@@ -77,6 +91,7 @@ function computeUpwork(entry, rates) {
   const nominal = nominalRate(rate, rates);
   const gross = round2(usdGross * nominal);
   const tithe = round2(gross * rates.tithe);
+  const tax = taxOn(gross, entry, rates);
   // O que entra na conta, esse sim, é convertido pelo VET.
   const landed = round2(usdSent * rate);
 
@@ -88,8 +103,9 @@ function computeUpwork(entry, rates) {
     nominal,
     gross,
     tithe,
+    tax,
     landed,
-    net: round2(landed - tithe),
+    net: round2(landed - tithe - tax),
   };
 }
 
@@ -103,6 +119,7 @@ export function statement(entry, fallbackRates = DEFAULT_RATES) {
     return [
       { label: 'Bruto', brl: c.gross },
       { label: `Dízimo ${pct(rates.tithe)}`, brl: -c.tithe },
+      ...(c.tax ? [{ label: `Imposto ${pct(rates.tax)} do faturamento`, brl: -c.tax }] : []),
       { label: 'Livre para gastar', brl: c.net, total: true },
     ];
   }
@@ -116,12 +133,14 @@ export function statement(entry, fallbackRates = DEFAULT_RATES) {
     { label: `Caiu na conta (VET ${formatRate(entry.rate)})`, brl: c.landed },
     { label: `Bruto pela cotação do dia (${formatRate(c.nominal)})`, brl: c.gross, muted: true },
     { label: `Dízimo ${pct(rates.tithe)} do bruto`, brl: -c.tithe },
+    ...(c.tax ? [{ label: `Imposto ${pct(rates.tax)} do faturamento`, brl: -c.tax }] : []),
     { label: 'Livre para gastar', brl: c.net, total: true },
   ];
 }
 
+// A vírgula é a separadora decimal de quem lê: "4,5%", nunca "4.5%".
 function pct(rate) {
-  return `${round2(rate * 100)}%`;
+  return `${String(round2(rate * 100)).replace('.', ',')}%`;
 }
 
 export function formatRate(rate) {
