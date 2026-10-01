@@ -480,7 +480,7 @@ function openDayDialog(iso, entry = null) {
     : (categoryFilter && categoryFilter !== NO_CATEGORY ? categoryFilter : '');
   el('day-gross').value = entry && entry.kind === 'brl' && entry.gross != null
     ? String(entry.gross).replace('.', ',') : '';
-  el('day-usd').value = entry && entry.usdBilled != null ? String(entry.usdBilled).replace('.', ',') : '';
+  el('day-usd').value = entry && entry.usdNet != null ? String(entry.usdNet).replace('.', ',') : '';
   el('day-charges').value = entry && entry.usdCharges ? String(entry.usdCharges).replace('.', ',') : '';
   el('day-rate').value = entry && entry.rate != null ? String(entry.rate).replace('.', ',') : '';
   el('day-ptax').value = entry && entry.ptax != null ? String(entry.ptax).replace('.', ',') : '';
@@ -521,7 +521,7 @@ function dialogEntry() {
   return {
     kind,
     gross: kind === 'brl' ? parseAmount(el('day-gross').value) : null,
-    usdBilled: kind === 'upwork' ? parseAmountSum(el('day-usd').value) : null,
+    usdNet: kind === 'upwork' ? parseAmountSum(el('day-usd').value) : null,
     usdCharges: kind === 'upwork' ? parseAmountSum(el('day-charges').value) : null,
     rate: kind === 'upwork' ? parseRate(el('day-rate').value) : null,
     ptax: kind === 'upwork' ? parseRate(el('day-ptax').value) : null,

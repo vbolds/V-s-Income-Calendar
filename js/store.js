@@ -67,14 +67,14 @@ export function newId() {
   return `e${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Aceita tanto o faturado (campo de hoje) quanto o net depois da service fee
-// (como era antes), para que um arquivo antigo e um rascunho antigo entrem sem
-// perder nada.
-function billedOf(partial, fallbackRates) {
-  if (partial.usdBilled != null) return round2(partial.usdBilled);
-  if (partial.usdNet == null) return null;
+// O campo digitado é o previsto de saque, já sem a service fee. Uma entrada
+// gravada na versão que pedia o faturado guarda usdBilled; tirar os 15% dele
+// devolve o previsto, que é a mesma linha do extrato por outro nome.
+function netOf(partial, fallbackRates) {
+  if (partial.usdNet != null) return round2(partial.usdNet);
+  if (partial.usdBilled == null) return null;
   const fee = { ...DEFAULT_RATES, ...fallbackRates, ...(partial.rates || {}) }.serviceFee;
-  return round2(partial.usdNet / (1 - fee));
+  return round2(partial.usdBilled * (1 - fee));
 }
 
 export function makeEntry(partial = {}, fallbackRates = DEFAULT_RATES) {
@@ -90,10 +90,9 @@ export function makeEntry(partial = {}, fallbackRates = DEFAULT_RATES) {
     // Digitado: em reais quando é renda daqui, em dólar mais o VET quando vem
     // da Upwork.
     gross: kind === 'brl' && partial.gross != null ? round2(partial.gross) : null,
-    // O faturado na Upwork, antes de qualquer desconto. Entradas gravadas antes
-    // deste campo guardavam o net depois da service fee; recompô-lo por
-    // ÷(1 − fee) devolve exatamente o "bruto recomposto" que elas já mostravam.
-    usdBilled: kind === 'upwork' ? billedOf(partial, fallbackRates) : null,
+    // O previsto de saque: o que a Upwork mostra depois dos 15%. O bruto sai
+    // daqui por ÷(1 − fee) na hora de calcular, nunca é digitado nem guardado.
+    usdNet: kind === 'upwork' ? netOf(partial, fallbackRates) : null,
     usdCharges: kind === 'upwork' && partial.usdCharges != null ? round2(partial.usdCharges) : null,
     rate: kind === 'upwork' && partial.rate != null ? Number(partial.rate) : null,
     ptax: kind === 'upwork' && partial.ptax != null ? Number(partial.ptax) : null,
@@ -125,6 +124,7 @@ function derive(entry) {
   const c = computeEntry(entry, entry.rates);
   return {
     gross: entry.kind === 'upwork' ? c.gross : entry.gross,
+    usdGross: c.usdGross,
     usdSent: c.usdSent,
     tithe: c.tithe,
     tax: c.tax,
@@ -180,8 +180,8 @@ export function parseFile(text) {
       category: typeof item.category === 'string' ? item.category : '',
       kind,
       gross: Number.isFinite(item.gross) ? item.gross : null,
-      usdBilled: Number.isFinite(item.usdBilled) ? item.usdBilled : null,
       usdNet: Number.isFinite(item.usdNet) ? item.usdNet : null,
+      usdBilled: Number.isFinite(item.usdBilled) ? item.usdBilled : null,
       usdCharges: Number.isFinite(item.usdCharges) ? item.usdCharges : null,
       rate: Number.isFinite(item.rate) ? item.rate : null,
       ptax: Number.isFinite(item.ptax) ? item.ptax : null,
@@ -207,13 +207,13 @@ export function serializeFile(entries, rates = DEFAULT_RATES) {
       kind: e.kind,
       // O que foi digitado.
       ...(e.kind === 'upwork'
-        ? { usdBilled: e.usdBilled, usdCharges: e.usdCharges, rate: e.rate, ptax: e.ptax }
+        ? { usdNet: e.usdNet, usdCharges: e.usdCharges, rate: e.rate, ptax: e.ptax }
         : { gross: e.gross }),
       rates: e.rates,
       // Calculados. Gravados para o arquivo se ler sozinho (numa planilha, ou
       // olhando no GitHub); na carga são refeitos, nunca lidos daqui.
       grossBRL: e.gross,
-      ...(e.kind === 'upwork' ? { usdSent: e.usdSent } : {}),
+      ...(e.kind === 'upwork' ? { usdGross: e.usdGross, usdSent: e.usdSent } : {}),
       tithe: e.tithe,
       tax: e.tax,
       landed: e.landed,
@@ -240,7 +240,7 @@ export function sortEntries(entries) {
 function fingerprint(entries) {
   return JSON.stringify(sortEntries(entries).map((e) => [
     e.date, e.source, e.category, e.kind,
-    e.kind === 'upwork' ? [e.usdBilled, e.usdCharges, e.rate, e.ptax] : e.gross,
+    e.kind === 'upwork' ? [e.usdNet, e.usdCharges, e.rate, e.ptax] : e.gross,
     e.rates.serviceFee, e.rates.withdrawal, e.rates.tithe, e.rates.tax,
     e.received, e.taxed, e.notes,
   ]));
