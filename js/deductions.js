@@ -5,17 +5,26 @@
 //   kind: 'brl'     salário e afins. Você digita o bruto em reais.
 //                   dízimo = 10% do bruto; livre = bruto − dízimo − imposto.
 //
-//   kind: 'upwork'  a transferência mensal. Você digita o que a Upwork mostra
-//                   como net das semanas (já sem a service fee) e o VET da Wise.
-//                   O bruto é recomposto de trás pra frente para servir de base
-//                   do dízimo.
+//   kind: 'upwork'  a transferência mensal. Você digita o que foi FATURADO na
+//                   Upwork (o billed, antes de qualquer desconto), o que ela
+//                   cobrou à parte no mês, o VET da Wise e o PTAX do dia
+//                   anterior.
 //
-// A recomposição é DIVIDIR por (1 − taxa), nunca multiplicar por (1 + taxa):
-// US$ 393,89 ÷ 0,85 = US$ 463,40, que é o bruto do extrato. Multiplicar por 1,15
-// daria US$ 452,97 e o dízimo sairia menor do que deveria.
+// A ordem dos descontos em dólar é a do extrato da Upwork, e ela importa porque
+// a service fee é percentual e as outras duas são fixas:
 //
-// O VET da Wise já é líquido de IOF e tarifa (5,1028 vira 5,0588, os 0,86%), por
-// isso nada mais é descontado depois da conversão.
+//     faturado            2.032,90
+//     − service fee 15%     304,94
+//     = na Upwork         1.727,96
+//     − outras cobranças     19,99   (subscription renewal, por exemplo)
+//     = sacado            1.707,97
+//     − withdrawal fee        2,99
+//     = enviado à Wise    1.704,98
+//
+// Dois câmbios, cada um no seu lugar: o VET converte o que de fato cai na conta
+// (ele já é líquido de IOF e tarifa, por isso nada mais é descontado depois), e
+// o PTAX do dia anterior — o que a Receita manda usar na nota — converte o
+// faturado para dar a base em reais do dízimo e do imposto.
 //
 // Dízimo e imposto saem do MESMO bruto, cada um sobre os 100%, nunca um sobre o
 // outro: o imposto do CNPJ é sobre o faturamento, que é o valor da nota, e não
@@ -31,8 +40,9 @@ export const DEFAULT_RATES = {
   tax: 0.06,          // imposto do CNPJ, sobre o faturamento — o mesmo bruto
 };
 
-// O VET é o câmbio depois da tarifa e do IOF: 5,1028 vira 5,0588. Para o dízimo
-// vale a cotação do dia, então o desconto é desfeito de volta.
+// Só serve de reserva para entradas antigas, de antes do campo de PTAX: o VET é
+// o câmbio já descontado da tarifa e do IOF (5,1028 vira 5,0588), então desfazer
+// o desconto dá uma aproximação da cotação do dia.
 export function nominalRate(vet, rates = DEFAULT_RATES) {
   if (!Number.isFinite(Number(vet))) return null;
   return Number(vet) / (1 - rates.wiseFee);
@@ -43,7 +53,8 @@ export function ratesFor(entry, fallback = DEFAULT_RATES) {
 }
 
 const EMPTY = {
-  usdGross: null, usdFee: 0, usdWithdrawal: 0, usdSent: null, nominal: null,
+  usdGross: null, usdFee: 0, usdCharges: 0, usdWithdrawn: null,
+  usdWithdrawal: 0, usdSent: null, nominal: null, notaRate: null, ptaxUsed: false,
   gross: null, tithe: 0, tax: 0, landed: null, net: null,
 };
 
@@ -79,28 +90,39 @@ function computeBrl(entry, rates) {
 }
 
 function computeUpwork(entry, rates) {
-  const usdNet = entry.usdNet == null ? null : round2(entry.usdNet);
+  const usdBilled = entry.usdBilled == null ? null : round2(entry.usdBilled);
   const rate = entry.rate == null ? null : Number(entry.rate);
-  if (usdNet == null || !Number.isFinite(rate)) return { ...EMPTY };
+  if (usdBilled == null || !Number.isFinite(rate)) return { ...EMPTY };
 
-  const usdGross = round2(usdNet / (1 - rates.serviceFee));
-  const usdSent = round2(usdNet - rates.withdrawal);
+  // Em dólar, na ordem do extrato: a fee percentual primeiro, depois as fixas.
+  const usdFee = round2(usdBilled * rates.serviceFee);
+  const usdCharges = entry.usdCharges == null ? 0 : round2(entry.usdCharges);
+  const usdWithdrawn = round2(usdBilled - usdFee - usdCharges);
+  const usdSent = round2(usdWithdrawn - rates.withdrawal);
 
-  // A base do dízimo vale pela cotação do dia, não pela líquida de tarifa: o
-  // VET é recomposto antes de converter o bruto.
+  // A base da nota é o faturado pelo PTAX do dia anterior. Sem PTAX — entradas
+  // de antes do campo existir — sobra recompor o VET, que é só uma aproximação.
+  const ptax = entry.ptax == null ? null : Number(entry.ptax);
+  const ptaxUsed = Number.isFinite(ptax) && ptax > 0;
   const nominal = nominalRate(rate, rates);
-  const gross = round2(usdGross * nominal);
+  const notaRate = ptaxUsed ? ptax : nominal;
+
+  const gross = round2(usdBilled * notaRate);
   const tithe = round2(gross * rates.tithe);
   const tax = taxOn(gross, entry, rates);
   // O que entra na conta, esse sim, é convertido pelo VET.
   const landed = round2(usdSent * rate);
 
   return {
-    usdGross,
-    usdFee: round2(usdGross - usdNet),
+    usdGross: usdBilled,
+    usdFee,
+    usdCharges,
+    usdWithdrawn,
     usdWithdrawal: rates.withdrawal,
     usdSent,
     nominal,
+    notaRate,
+    ptaxUsed,
     gross,
     tithe,
     tax,
@@ -125,20 +147,26 @@ export function statement(entry, fallbackRates = DEFAULT_RATES) {
   }
 
   return [
-    { label: 'Net na Upwork (semanas)', usd: entry.usdNet },
-    { label: `Bruto recomposto (÷ ${(1 - rates.serviceFee).toFixed(2)})`, usd: c.usdGross, muted: true },
-    { label: `Service fee ${pct(rates.serviceFee)}`, usd: -c.usdFee, muted: true },
+    { label: 'Faturado na Upwork', usd: c.usdGross },
+    { label: `Service fee ${pct(rates.serviceFee)}`, usd: -c.usdFee },
+    ...(c.usdCharges ? [{ label: 'Outras cobranças', usd: -c.usdCharges }] : []),
+    { label: 'Sacado da Upwork', usd: c.usdWithdrawn, muted: true },
     { label: 'Withdrawal fee', usd: -c.usdWithdrawal },
     { label: 'Enviado para a Wise', usd: c.usdSent },
     { label: `Caiu na conta (VET ${formatRate(entry.rate)})`, brl: c.landed },
-    { label: `Bruto pela cotação do dia (${formatRate(c.nominal)})`, brl: c.gross, muted: true },
-    { label: `Dízimo ${pct(rates.tithe)} do bruto`, brl: -c.tithe },
+    {
+      label: c.ptaxUsed
+        ? `Base da nota (PTAX ${formatRate(c.notaRate)})`
+        : `Base da nota (VET recomposto ${formatRate(c.notaRate)} — falta o PTAX)`,
+      brl: c.gross,
+      muted: true,
+    },
+    { label: `Dízimo ${pct(rates.tithe)} do faturado`, brl: -c.tithe },
     ...(c.tax ? [{ label: `Imposto ${pct(rates.tax)} do faturamento`, brl: -c.tax }] : []),
     { label: 'Livre para gastar', brl: c.net, total: true },
   ];
 }
 
-// A vírgula é a separadora decimal de quem lê: "4,5%", nunca "4.5%".
 function pct(rate) {
   return `${String(round2(rate * 100)).replace('.', ',')}%`;
 }

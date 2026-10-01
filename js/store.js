@@ -67,6 +67,16 @@ export function newId() {
   return `e${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Aceita tanto o faturado (campo de hoje) quanto o net depois da service fee
+// (como era antes), para que um arquivo antigo e um rascunho antigo entrem sem
+// perder nada.
+function billedOf(partial, fallbackRates) {
+  if (partial.usdBilled != null) return round2(partial.usdBilled);
+  if (partial.usdNet == null) return null;
+  const fee = { ...DEFAULT_RATES, ...fallbackRates, ...(partial.rates || {}) }.serviceFee;
+  return round2(partial.usdNet / (1 - fee));
+}
+
 export function makeEntry(partial = {}, fallbackRates = DEFAULT_RATES) {
   const date = partial.date || '';
   const kind = partial.kind === 'upwork' ? 'upwork' : 'brl';
@@ -80,8 +90,13 @@ export function makeEntry(partial = {}, fallbackRates = DEFAULT_RATES) {
     // Digitado: em reais quando é renda daqui, em dólar mais o VET quando vem
     // da Upwork.
     gross: kind === 'brl' && partial.gross != null ? round2(partial.gross) : null,
-    usdNet: kind === 'upwork' && partial.usdNet != null ? round2(partial.usdNet) : null,
+    // O faturado na Upwork, antes de qualquer desconto. Entradas gravadas antes
+    // deste campo guardavam o net depois da service fee; recompô-lo por
+    // ÷(1 − fee) devolve exatamente o "bruto recomposto" que elas já mostravam.
+    usdBilled: kind === 'upwork' ? billedOf(partial, fallbackRates) : null,
+    usdCharges: kind === 'upwork' && partial.usdCharges != null ? round2(partial.usdCharges) : null,
     rate: kind === 'upwork' && partial.rate != null ? Number(partial.rate) : null,
+    ptax: kind === 'upwork' && partial.ptax != null ? Number(partial.ptax) : null,
     // As taxas ficam gravadas na entrada: mudar uma taxa hoje não pode
     // reescrever o que já aconteceu.
     rates: { ...DEFAULT_RATES, ...fallbackRates, ...(partial.rates || {}) },
@@ -110,6 +125,7 @@ function derive(entry) {
   const c = computeEntry(entry, entry.rates);
   return {
     gross: entry.kind === 'upwork' ? c.gross : entry.gross,
+    usdSent: c.usdSent,
     tithe: c.tithe,
     tax: c.tax,
     landed: c.landed,
@@ -164,8 +180,11 @@ export function parseFile(text) {
       category: typeof item.category === 'string' ? item.category : '',
       kind,
       gross: Number.isFinite(item.gross) ? item.gross : null,
+      usdBilled: Number.isFinite(item.usdBilled) ? item.usdBilled : null,
       usdNet: Number.isFinite(item.usdNet) ? item.usdNet : null,
+      usdCharges: Number.isFinite(item.usdCharges) ? item.usdCharges : null,
       rate: Number.isFinite(item.rate) ? item.rate : null,
+      ptax: Number.isFinite(item.ptax) ? item.ptax : null,
       rates: item.rates && typeof item.rates === 'object' ? item.rates : undefined,
       received: typeof item.received === 'boolean' ? item.received : undefined,
       taxed: typeof item.taxed === 'boolean' ? item.taxed : undefined,
@@ -187,11 +206,14 @@ export function serializeFile(entries, rates = DEFAULT_RATES) {
       category: e.category,
       kind: e.kind,
       // O que foi digitado.
-      ...(e.kind === 'upwork' ? { usdNet: e.usdNet, rate: e.rate } : { gross: e.gross }),
+      ...(e.kind === 'upwork'
+        ? { usdBilled: e.usdBilled, usdCharges: e.usdCharges, rate: e.rate, ptax: e.ptax }
+        : { gross: e.gross }),
       rates: e.rates,
       // Calculados. Gravados para o arquivo se ler sozinho (numa planilha, ou
       // olhando no GitHub); na carga são refeitos, nunca lidos daqui.
       grossBRL: e.gross,
+      ...(e.kind === 'upwork' ? { usdSent: e.usdSent } : {}),
       tithe: e.tithe,
       tax: e.tax,
       landed: e.landed,
@@ -218,7 +240,7 @@ export function sortEntries(entries) {
 function fingerprint(entries) {
   return JSON.stringify(sortEntries(entries).map((e) => [
     e.date, e.source, e.category, e.kind,
-    e.kind === 'upwork' ? [e.usdNet, e.rate] : e.gross,
+    e.kind === 'upwork' ? [e.usdBilled, e.usdCharges, e.rate, e.ptax] : e.gross,
     e.rates.serviceFee, e.rates.withdrawal, e.rates.tithe, e.rates.tax,
     e.received, e.taxed, e.notes,
   ]));

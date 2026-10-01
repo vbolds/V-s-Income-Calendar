@@ -480,8 +480,10 @@ function openDayDialog(iso, entry = null) {
     : (categoryFilter && categoryFilter !== NO_CATEGORY ? categoryFilter : '');
   el('day-gross').value = entry && entry.kind === 'brl' && entry.gross != null
     ? String(entry.gross).replace('.', ',') : '';
-  el('day-usd').value = entry && entry.usdNet != null ? String(entry.usdNet).replace('.', ',') : '';
+  el('day-usd').value = entry && entry.usdBilled != null ? String(entry.usdBilled).replace('.', ',') : '';
+  el('day-charges').value = entry && entry.usdCharges ? String(entry.usdCharges).replace('.', ',') : '';
   el('day-rate').value = entry && entry.rate != null ? String(entry.rate).replace('.', ',') : '';
+  el('day-ptax').value = entry && entry.ptax != null ? String(entry.ptax).replace('.', ',') : '';
   el('day-notes').value = entry ? entry.notes : '';
   // Renda datada de hoje ou antes normalmente já caiu; o que está à frente é
   // plano. De qualquer forma a caixa está logo ali para mudar.
@@ -519,8 +521,10 @@ function dialogEntry() {
   return {
     kind,
     gross: kind === 'brl' ? parseAmount(el('day-gross').value) : null,
-    usdNet: kind === 'upwork' ? parseAmountSum(el('day-usd').value) : null,
+    usdBilled: kind === 'upwork' ? parseAmountSum(el('day-usd').value) : null,
+    usdCharges: kind === 'upwork' ? parseAmountSum(el('day-charges').value) : null,
     rate: kind === 'upwork' ? parseRate(el('day-rate').value) : null,
+    ptax: kind === 'upwork' ? parseRate(el('day-ptax').value) : null,
     taxed: el('day-taxed').checked,
     rates,
   };
@@ -561,7 +565,7 @@ function wireDayDialog() {
     toast('Renda excluída.');
   });
 
-  for (const id of ['day-gross', 'day-usd', 'day-rate']) {
+  for (const id of ['day-gross', 'day-usd', 'day-charges', 'day-rate', 'day-ptax']) {
     el(id).addEventListener('input', updateStatement);
   }
   el('day-taxed').addEventListener('change', updateStatement);

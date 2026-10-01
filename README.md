@@ -11,8 +11,9 @@ any browser — Mac, Windows, phone — and that keeps every change forever.
   get the gross and net totals for it. Presets cover the common ones, including
   *Month back* (e.g. last day August 2nd → July 2nd to August 2nd).
 - **Net is calculated, never typed** — for income in reais you enter the gross;
-  for an Upwork transfer you enter the weekly net in dollars and the Wise VET,
-  and the app works the whole chain out, dízimo and tax included.
+  for an Upwork transfer you enter what you were billed in dollars, what Upwork
+  charged on top, the Wise VET and the day's PTAX, and the app works the whole
+  chain out, dízimo and tax included.
 - **Received vs expected** — plan income for months ahead and flag each one as
   **Recebido** once it actually lands. The totals show both, split apart, and
   either one can be clicked to show just those entries.
@@ -159,11 +160,19 @@ received yet is drawn hollow with a dashed outline on the calendar, and in
 italics in the table, so a plan never looks like cash in hand. New entries start
 ticked when dated today or earlier, unticked when dated ahead.
 
-**Upwork** — pick *Upwork (US$)* in the dialog and enter two things: the **net
-of the weeks** as Upwork shows it (you can add them up with `+`, e.g.
-`393,89 + 393,89`) and the **VET** of the Wise transfer. The dialog shows the
-whole chain as you type, so the number that lands in the table is never a
-surprise — it is the calculator and the form at the same time.
+**Upwork** — pick *Upwork (US$)* in the dialog and enter four things:
+
+| Field | What to put there |
+| --- | --- |
+| **Faturado na Upwork** | The *billed* amount of each week, before any deduction — add them up with `+`, e.g. `537,88 + 513,05 + 518,57 + 463,40` |
+| **Outras cobranças** | Anything Upwork charged on top that month, such as a subscription renewal. Leave it empty if there was none |
+| **VET da Wise** | The rate of the transfer. It converts what actually reaches the account |
+| **PTAX do dia anterior** | The rate the Receita uses for the nota fiscal, from the Banco Central site. It converts the billed amount into the base for the dízimo and the tax |
+
+The dialog shows the whole chain as you type, so the number that lands in the
+table is never a surprise — it is the calculator and the form at the same time.
+Without a PTAX the base falls back to the VET put back to the day's rate, and
+the statement says so, so an entry is never silently guessing.
 
 **See a period's income** — set **From** and **To**; both days are counted. The
 headline is the net for that period, with three figures under it:
@@ -250,15 +259,18 @@ the app. Drafts are local only and never create commits.
 }
 ```
 
-An Upwork entry carries `"kind": "upwork"` with `usdNet` and `rate` instead of
-`gross`. The calculated fields (`grossBRL`, `tithe`, `tax`, `landed`, `net`) are written
+An Upwork entry carries `"kind": "upwork"` with `usdBilled`, `usdCharges`,
+`rate` (the VET) and `ptax` instead of `gross`, plus a calculated `usdSent`.
+The calculated fields (`grossBRL`, `usdSent`, `tithe`, `tax`, `landed`, `net`) are written
 out so the file reads well on its own — in a spreadsheet, or at a glance on
 GitHub — but on load they are always recalculated from what you typed. The rules
 decide them, never the stored numbers.
 
-Older files still load fine, as income in reais keeping their gross — the Upwork
-format needs the dollar amount and the VET, which they do not have, so an Upwork
-transfer recorded under the old rules is worth entering again. A missing category
+Older files still load fine. An Upwork entry written before the billed amount was
+asked for stored `usdNet`, the figure left after the service fee; it is read back
+as `usdBilled = usdNet ÷ (1 − 15%)`, which is exactly the "bruto recomposto" such
+an entry already displayed, so nothing moves on load. It has no record of a
+subscription charge or a PTAX, though, so open it once and fill those in. A missing category
 defaults to empty; the retired per-entry `tithe` and `upwork` flags are ignored; a missing **received** flag is read from the date — dated today or
 earlier counts as received, dated ahead counts as expected — so entries written
 before the flag existed land on the right side of the split. Once you save, the
@@ -274,33 +286,41 @@ the **imposto** (6% of turnover — the value of the nota fiscal).
 
     Bruto R$ 8.000,00  − dízimo R$ 800,00  − imposto R$ 480,00  = R$ 6.720,00 livre
 
-**Upwork** — you type the net of the weeks and the VET; everything else follows.
-The gross is recomposed by **dividing by 0,85**, never by multiplying by 1,15:
-US$ 393,89 ÷ 0,85 = US$ 463,40, which is what the Upwork statement shows.
+**Upwork** — you type what was billed, what Upwork charged on top, the VET and
+the PTAX; everything else follows. The order matters, because the service fee is
+a percentage and the other two are fixed amounts:
 
-    Net das semanas       US$ 1.575,56
-    Bruto recomposto      US$ 1.853,60   (÷ 0,85)
-      service fee 15%     US$   278,04
+    Faturado (billed)     US$ 2.032,90   537,88 + 513,05 + 518,57 + 463,40
+    − service fee 15%     US$   304,94
+    = na Upwork           US$ 1.727,96
+    − outras cobranças    US$    19,99   subscription renewal
+    = sacado              US$ 1.707,97
     − withdrawal fee      US$     2,99
-    = enviado à Wise      US$ 1.572,57
-    × VET 5,0588
-    = caiu na conta        R$ 7.955,32
-    − dízimo               R$   945,83
-    − imposto              R$   567,50
-    = livre para gastar    R$ 6.441,99
+    = enviado à Wise      US$ 1.704,98
 
-The **VET already includes IOF and Wise's fee** (5,1028 becomes 5,0588 — the
-0,86%), so nothing is taken off again after the conversion.
+From there, two different rates, each with its own job:
 
-The dízimo and the imposto, though, are worked out at **the day's rate**, not at
-the one net of those fees: the VET is put back to 5,1027 before converting the
-gross, so the base is US$ 1.853,60 × 5,1027 = R$ 9.458,33 — a tenth of that is
-R$ 945,83 and 6% of it is R$ 567,50. What lands in the account still converts at
-the VET itself.
+    enviado × VET 5,0588
+    = caiu na conta        R$ 8.625,15
 
-Because both are worked out on the **gross**, together they come to about 19% of
-what actually reaches the account, not 16%: the platform and transfer fees come
-out of your side, not out of the tithe's or the taxman's.
+    faturado × PTAX 5,3214
+    = base da nota         R$10.817,87
+    − dízimo 10%           R$ 1.081,79
+    − imposto 6%           R$   649,07
+
+    caiu − dízimo − imposto
+    = livre para gastar    R$ 6.894,29
+
+The **VET already includes IOF and Wise's fee**, so nothing is taken off again
+after the conversion. The **PTAX of the previous day** is what the Receita uses
+to value a nota fiscal, so it — not the VET — decides the base in reais that the
+dízimo and the tax come out of. You look it up on the Banco Central site on the
+day you enter the transfer.
+
+Because both are worked out on the **billed** amount, together they come to more
+than 16% of what actually reaches the account — about 20% in the example above:
+the platform fee, the subscription and the transfer fee all come out of your
+side, not out of the tithe's or the taxman's.
 
 The rates — service fee, withdrawal fee, Wise + IOF, dízimo, imposto — live under the **%** button and
 are stored in the data file, so they are the same on every device. Each entry

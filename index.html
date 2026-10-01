@@ -265,14 +265,24 @@
 
     <div id="fields-upwork" class="hidden">
       <label>
-        Net das semanas na Upwork (US$)
-        <input id="day-usd" type="text" inputmode="decimal" autocomplete="off" placeholder="393,89 + 393,89 + 393,89">
-        <small class="muted">Pode somar as semanas com “+”. É o valor que a Upwork mostra depois da service fee.</small>
+        Faturado na Upwork (US$)
+        <input id="day-usd" type="text" inputmode="decimal" autocomplete="off" placeholder="537,88 + 513,05 + 518,57 + 463,40">
+        <small class="muted">O <em>billed</em> de cada semana, antes de qualquer desconto. Pode somar com “+”.</small>
+      </label>
+      <label>
+        Outras cobranças da Upwork (US$)
+        <input id="day-charges" type="text" inputmode="decimal" autocomplete="off" placeholder="19,99">
+        <small class="muted">Subscription renewal e afins, cobrados depois da service fee. Deixe vazio se não houve.</small>
       </label>
       <label>
         Câmbio — VET da Wise
         <input id="day-rate" type="text" inputmode="decimal" autocomplete="off" placeholder="5,0588">
-        <small class="muted">O VET já inclui IOF e tarifa.</small>
+        <small class="muted">Converte o que de fato cai na conta. Já inclui IOF e tarifa.</small>
+      </label>
+      <label>
+        PTAX do dia anterior
+        <input id="day-ptax" type="text" inputmode="decimal" autocomplete="off" placeholder="5,3214">
+        <small class="muted">O câmbio da nota fiscal, no site do Banco Central. É ele que dá a base do dízimo e do imposto.</small>
       </label>
     </div>
 
