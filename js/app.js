@@ -2,7 +2,7 @@
 // rolling-window summary, local draft autosave, and the one-commit Save button.
 
 import { CalendarView, escapeHtml } from './calendar.js';
-import { DEFAULT_RATES, statement } from './deductions.js';
+import { DEFAULT_RATES, TITHE_RULE_CHANGED_ON, statement } from './deductions.js';
 import { hueStyle } from './palette.js';
 import { MONTH_NAMES, addMonths, formatLong, todayISO } from './dates.js';
 import { GitHubError, getFile, putFile, verifyAccess } from './github.js';
@@ -480,9 +480,11 @@ function openDayDialog(iso, entry = null) {
     : (categoryFilter && categoryFilter !== NO_CATEGORY ? categoryFilter : '');
   el('day-gross').value = entry && entry.kind === 'brl' && entry.gross != null
     ? String(entry.gross).replace('.', ',') : '';
-  el('day-usd').value = entry && entry.usdNet != null ? String(entry.usdNet).replace('.', ',') : '';
+  el('day-withdrawn').value = entry && entry.usdWithdrawn != null ? String(entry.usdWithdrawn).replace('.', ',') : '';
+  // Numa entrada nova a subscription já vem preenchida com a vigente: é o que
+  // ela é quase sempre, e fica aberta para mudar.
+  el('day-subscription').value = String(entry ? entry.usdSubscription ?? 0 : rates.subscription).replace('.', ',');
   el('day-billed').value = entry && entry.usdBilled != null ? String(entry.usdBilled).replace('.', ',') : '';
-  el('day-charges').value = entry && entry.usdCharges ? String(entry.usdCharges).replace('.', ',') : '';
   el('day-rate').value = entry && entry.rate != null ? String(entry.rate).replace('.', ',') : '';
   el('day-ptax').value = entry && entry.ptax != null ? String(entry.ptax).replace('.', ',') : '';
   el('day-notes').value = entry ? entry.notes : '';
@@ -505,6 +507,11 @@ function openDayDialog(iso, entry = null) {
   el('day-source').focus();
 }
 
+// A regra do dízimo é a que valia na data do lançamento, não a de hoje.
+function titheBaseFor(date) {
+  return date && date < TITHE_RULE_CHANGED_ON ? 'gross' : 'withdrawn';
+}
+
 function currentKind() {
   const checked = document.querySelector('input[name="day-kind"]:checked');
   return checked ? checked.value : 'brl';
@@ -521,10 +528,12 @@ function dialogEntry() {
   const kind = currentKind();
   return {
     kind,
+    date: el('day-date').value,
+    titheBase: titheBaseFor(el('day-date').value),
     gross: kind === 'brl' ? parseAmount(el('day-gross').value) : null,
-    usdNet: kind === 'upwork' ? parseAmountSum(el('day-usd').value) : null,
+    usdWithdrawn: kind === 'upwork' ? parseAmountSum(el('day-withdrawn').value) : null,
+    usdSubscription: kind === 'upwork' ? (parseAmountSum(el('day-subscription').value) ?? 0) : null,
     usdBilled: kind === 'upwork' ? parseAmountSum(el('day-billed').value) : null,
-    usdCharges: kind === 'upwork' ? parseAmountSum(el('day-charges').value) : null,
     rate: kind === 'upwork' ? parseRate(el('day-rate').value) : null,
     ptax: kind === 'upwork' ? parseRate(el('day-ptax').value) : null,
     taxed: el('day-taxed').checked,
@@ -567,10 +576,12 @@ function wireDayDialog() {
     toast('Renda excluída.');
   });
 
-  for (const id of ['day-gross', 'day-usd', 'day-billed', 'day-charges', 'day-rate', 'day-ptax']) {
+  for (const id of ['day-gross', 'day-withdrawn', 'day-subscription', 'day-billed', 'day-rate', 'day-ptax']) {
     el(id).addEventListener('input', updateStatement);
   }
   el('day-taxed').addEventListener('change', updateStatement);
+  // A data decide de qual base sai o dízimo, então o extrato tem que acompanhar.
+  el('day-date').addEventListener('change', updateStatement);
   for (const radio of document.querySelectorAll('input[name="day-kind"]')) {
     radio.addEventListener('change', () => { syncKindFields(); updateStatement(); });
   }
@@ -615,6 +626,7 @@ function wireRatesDialog() {
     el('rate-wise').value = String(round2pct(rates.wiseFee * 100)).replace('.', ',');
     el('rate-tithe').value = String(round1(rates.tithe * 100)).replace('.', ',');
     el('rate-tax').value = String(round2pct(rates.tax * 100)).replace('.', ',');
+    el('rate-subscription').value = String(rates.subscription).replace('.', ',');
     dialog.showModal();
   });
   el('rates-cancel').addEventListener('click', () => dialog.close('cancel'));
@@ -626,6 +638,7 @@ function wireRatesDialog() {
     const wise = parseRate(el('rate-wise').value);
     const tithe = parseAmount(el('rate-tithe').value);
     const tax = parseAmount(el('rate-tax').value);
+    const subscription = parseAmount(el('rate-subscription').value);
 
     rates = {
       serviceFee: service == null ? rates.serviceFee : service / 100,
@@ -633,6 +646,7 @@ function wireRatesDialog() {
       wiseFee: wise == null ? rates.wiseFee : wise / 100,
       tithe: tithe == null ? rates.tithe : tithe / 100,
       tax: tax == null ? rates.tax : tax / 100,
+      subscription: subscription == null ? rates.subscription : subscription,
     };
     // Só entradas novas usam as taxas novas; as que existem guardam as suas.
     store.emit();

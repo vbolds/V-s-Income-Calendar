@@ -224,7 +224,12 @@
     <label>
       Imposto do CNPJ (%)
       <input id="rate-tax" type="text" inputmode="decimal" autocomplete="off">
-      <small class="muted">Sobre o faturamento, na mesma base do dízimo. Vale só nas rendas marcadas como nota fiscal.</small>
+      <small class="muted">Sobre a base da nota. Vale só nas rendas marcadas como nota fiscal.</small>
+    </label>
+    <label>
+      Subscription da Upwork (US$)
+      <input id="rate-subscription" type="text" inputmode="decimal" autocomplete="off">
+      <small class="muted">Só o valor que já vem preenchido no lançamento; dá para mudar em cada um.</small>
     </label>
     <menu>
       <button type="button" id="rates-cancel" class="ghost">Cancelar</button>
@@ -265,29 +270,29 @@
 
     <div id="fields-upwork" class="hidden">
       <label>
-        Na Upwork, depois dos 15% (US$)
-        <input id="day-usd" type="text" inputmode="decimal" autocomplete="off" placeholder="457,20 + 436,09 + 440,78 + 393,89">
-        <small class="muted">O <em>net</em> de cada semana, somável com “+”. <strong>Antes</strong> das outras cobranças e do saque — não é o valor que você saca.</small>
+        Valor do saque (US$)
+        <input id="day-withdrawn" type="text" inputmode="decimal" autocomplete="off" placeholder="1707,98">
+        <small class="muted">O valor que a Upwork está mostrando para você sacar.</small>
       </label>
       <label>
-        Faturado na Upwork (US$) <span class="opt">opcional</span>
-        <input id="day-billed" type="text" inputmode="decimal" autocomplete="off" placeholder="537,88 + 513,05 + 518,57 + 463,40">
-        <small class="muted">Só para a nota sair no centavo certo. Vazio, o bruto é reconstruído do previsto — o que pode dar um centavo de diferença.</small>
+        Subscription fee (US$)
+        <input id="day-subscription" type="text" inputmode="decimal" autocomplete="off" placeholder="19,99">
+        <small class="muted">O que a Upwork cobrou no mês, já descontado do saque. Volta para a conta do contrato.</small>
       </label>
       <label>
-        Outras cobranças da Upwork (US$)
-        <input id="day-charges" type="text" inputmode="decimal" autocomplete="off" placeholder="19,99">
-        <small class="muted">Subscription renewal e afins, cobrados depois da service fee. Deixe vazio se não houve.</small>
+        Valor de contrato (US$) <span class="opt">opcional</span>
+        <input id="day-billed" type="text" inputmode="decimal" autocomplete="off" placeholder="2032,90">
+        <small class="muted">Só se quiser a nota no centavo exato. Vazio, é reconstruído por (saque + subscription) ÷ 0,85.</small>
       </label>
       <label>
         Câmbio — VET da Wise
-        <input id="day-rate" type="text" inputmode="decimal" autocomplete="off" placeholder="5,0588">
-        <small class="muted">Converte o que de fato cai na conta. Já inclui IOF e tarifa.</small>
+        <input id="day-rate" type="text" inputmode="decimal" autocomplete="off" placeholder="5,1735">
+        <small class="muted">Converte o que cai na conta e a base do dízimo.</small>
       </label>
       <label>
         PTAX do dia anterior
-        <input id="day-ptax" type="text" inputmode="decimal" autocomplete="off" placeholder="5,3214">
-        <small class="muted">O câmbio da nota fiscal, no site do Banco Central. É ele que dá a base do dízimo e do imposto.</small>
+        <input id="day-ptax" type="text" inputmode="decimal" autocomplete="off" placeholder="5,1803">
+        <small class="muted">O câmbio da nota fiscal, no site do Banco Central. É ele que dá a base do imposto.</small>
       </label>
     </div>
 
