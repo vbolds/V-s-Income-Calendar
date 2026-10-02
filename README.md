@@ -164,7 +164,8 @@ ticked when dated today or earlier, unticked when dated ahead.
 
 | Field | What to put there |
 | --- | --- |
-| **Previsto de saque** | What Upwork shows after its 15% — add the weeks up with `+`, e.g. `457,20 + 436,09 + 440,78 + 393,89`. The gross is worked back out from this; you never type it |
+| **Previsto de saque** | What Upwork shows after its 15% — add the weeks up with `+`, e.g. `457,20 + 436,09 + 440,78 + 393,89`. Everything that reaches the account follows from this |
+| **Faturado** *(optional)* | The billed amount, if you want the nota exact to the centavo. Left empty, the gross is worked back out of the previsto |
 | **Outras cobranças** | Anything Upwork charged on top that month, such as a subscription renewal. Leave it empty if there was none |
 | **VET da Wise** | The rate of the transfer. It converts what actually reaches the account |
 | **PTAX do dia anterior** | The rate the Receita uses for the nota fiscal, from the Banco Central site. It converts the reconstructed gross into the base for the dízimo and the tax |
@@ -260,8 +261,8 @@ the app. Drafts are local only and never create commits.
 ```
 
 An Upwork entry carries `"kind": "upwork"` with `usdNet` (the previsto de saque),
-`usdCharges`, `rate` (the VET) and `ptax` instead of `gross`, plus a calculated
-`usdGross` and `usdSent`. The calculated fields (`grossBRL`, `usdGross`,
+an optional `usdBilled`, `usdCharges`, `rate` (the VET) and `ptax` instead of
+`gross`, plus a calculated `usdGross` and `usdSent`. The calculated fields (`grossBRL`, `usdGross`,
 `usdSent`, `tithe`, `tax`, `landed`, `net`) are written
 out so the file reads well on its own — in a spreadsheet, or at a glance on
 GitHub — but on load they are always recalculated from what you typed. The rules
@@ -324,7 +325,14 @@ day you enter the transfer.
 
 Reconstructing the gross can land a cent away from the invoices themselves
 (US$ 2.032,89 against a real US$ 2.032,90), because each week was rounded to
-cents before you added them up. It costs about five centavos on the nota.
+cents before you added them up — about five centavos on the nota. When that
+matters, fill in **Faturado** and the real figure takes over as the nota's base,
+with the service fee shown as the real US$ 304,94 rather than the implied
+US$ 304,93. It changes only the nota: what leaves Upwork and what reaches the
+account still follow the previsto you typed, so the two can never disagree about
+the money. A faturado that is not larger than the previsto would mean a negative
+fee, so it is ignored and the gross is reconstructed instead — the statement
+names which of the two it used, every time.
 
 Because both are worked out on the **gross**, together they come to more than
 16% of what actually reaches the account — about 20% in the example above: the

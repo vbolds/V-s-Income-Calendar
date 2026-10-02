@@ -481,6 +481,7 @@ function openDayDialog(iso, entry = null) {
   el('day-gross').value = entry && entry.kind === 'brl' && entry.gross != null
     ? String(entry.gross).replace('.', ',') : '';
   el('day-usd').value = entry && entry.usdNet != null ? String(entry.usdNet).replace('.', ',') : '';
+  el('day-billed').value = entry && entry.usdBilled != null ? String(entry.usdBilled).replace('.', ',') : '';
   el('day-charges').value = entry && entry.usdCharges ? String(entry.usdCharges).replace('.', ',') : '';
   el('day-rate').value = entry && entry.rate != null ? String(entry.rate).replace('.', ',') : '';
   el('day-ptax').value = entry && entry.ptax != null ? String(entry.ptax).replace('.', ',') : '';
@@ -522,6 +523,7 @@ function dialogEntry() {
     kind,
     gross: kind === 'brl' ? parseAmount(el('day-gross').value) : null,
     usdNet: kind === 'upwork' ? parseAmountSum(el('day-usd').value) : null,
+    usdBilled: kind === 'upwork' ? parseAmountSum(el('day-billed').value) : null,
     usdCharges: kind === 'upwork' ? parseAmountSum(el('day-charges').value) : null,
     rate: kind === 'upwork' ? parseRate(el('day-rate').value) : null,
     ptax: kind === 'upwork' ? parseRate(el('day-ptax').value) : null,
@@ -565,7 +567,7 @@ function wireDayDialog() {
     toast('Renda excluída.');
   });
 
-  for (const id of ['day-gross', 'day-usd', 'day-charges', 'day-rate', 'day-ptax']) {
+  for (const id of ['day-gross', 'day-usd', 'day-billed', 'day-charges', 'day-rate', 'day-ptax']) {
     el(id).addEventListener('input', updateStatement);
   }
   el('day-taxed').addEventListener('change', updateStatement);

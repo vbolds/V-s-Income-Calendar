@@ -9,9 +9,14 @@
 //                   — o valor na Upwork já sem os 15% — mais o que ela cobrou
 //                   à parte no mês, o VET da Wise e o PTAX do dia anterior.
 //
-// O bruto não se digita: ele é reconstruído do previsto, DIVIDINDO por (1 − fee)
-// e nunca multiplicando por (1 + fee). US$ 1.727,96 ÷ 0,85 = US$ 2.032,89;
-// multiplicar por 1,15 daria US$ 1.987,15 e a nota sairia menor do que foi.
+// O bruto normalmente não se digita: ele é reconstruído do previsto, DIVIDINDO
+// por (1 − fee) e nunca multiplicando por (1 + fee). US$ 1.727,96 ÷ 0,85 =
+// US$ 2.032,89; multiplicar por 1,15 daria US$ 1.987,15 e a nota sairia menor.
+//
+// Reconstruir custa um centavo, porque as semanas já vêm arredondadas antes de
+// serem somadas. Para a nota fiscal, que precisa do número exato, existe o campo
+// de faturado: preenchido, ele manda na base da nota. A cadeia do saque continua
+// ancorada no previsto, que é o que de fato sai da Upwork.
 //
 // Daí a ordem dos descontos é a do extrato da Upwork, e ela importa porque a
 // service fee é percentual e as outras duas são valores fixos:
@@ -56,7 +61,7 @@ export function ratesFor(entry, fallback = DEFAULT_RATES) {
 }
 
 const EMPTY = {
-  usdGross: null, usdFee: 0, usdAfterFee: null, usdCharges: 0, usdWithdrawn: null,
+  usdGross: null, billedUsed: false, usdFee: 0, usdAfterFee: null, usdCharges: 0, usdWithdrawn: null,
   usdWithdrawal: 0, usdSent: null, nominal: null, notaRate: null, ptaxUsed: false,
   gross: null, tithe: 0, tax: 0, landed: null, net: null,
 };
@@ -97,14 +102,19 @@ function computeUpwork(entry, rates) {
   const rate = entry.rate == null ? null : Number(entry.rate);
   if (usdNet == null || !Number.isFinite(rate)) return { ...EMPTY };
 
-  // O bruto sai de trás pra frente, do previsto de saque, porque é ele que vira
-  // a nota; os 15% voltam a sair dele para a conta fechar na tela.
-  const usdGross = round2(usdNet / (1 - rates.serviceFee));
-  const usdFee = round2(usdGross * rates.serviceFee);
-  const usdAfterFee = round2(usdGross - usdFee);
+  // O bruto da nota: o faturado quando informado, senão reconstruído do
+  // previsto. Um faturado que não seja maior que o previsto não é faturado
+  // nenhum — seria uma service fee negativa —, então nesse caso reconstrói.
+  const typed = entry.usdBilled == null ? null : round2(entry.usdBilled);
+  const billedUsed = typed != null && typed > usdNet;
+  const usdGross = billedUsed ? typed : round2(usdNet / (1 - rates.serviceFee));
+  // Sai da subtração, e não de outro percentual, para fechar sempre com as duas
+  // pontas que estão na tela.
+  const usdFee = round2(usdGross - usdNet);
 
+  // Daqui pra baixo quem manda é o previsto: é dele que saem as cobranças.
   const usdCharges = entry.usdCharges == null ? 0 : round2(entry.usdCharges);
-  const usdWithdrawn = round2(usdAfterFee - usdCharges);
+  const usdWithdrawn = round2(usdNet - usdCharges);
   const usdSent = round2(usdWithdrawn - rates.withdrawal);
 
   // A base da nota é o bruto pelo PTAX do dia anterior. Sem PTAX — entradas de
@@ -122,8 +132,9 @@ function computeUpwork(entry, rates) {
 
   return {
     usdGross,
+    billedUsed,
     usdFee,
-    usdAfterFee,
+    usdAfterFee: usdNet,
     usdCharges,
     usdWithdrawn,
     usdWithdrawal: rates.withdrawal,
@@ -156,7 +167,13 @@ export function statement(entry, fallbackRates = DEFAULT_RATES) {
 
   return [
     { label: 'Previsto de saque (já sem os 15%)', usd: entry.usdNet },
-    { label: `Bruto reconstruído (÷ ${(1 - rates.serviceFee).toFixed(2).replace('.', ',')})`, usd: c.usdGross, muted: true },
+    {
+      label: c.billedUsed
+        ? 'Faturado na Upwork (informado)'
+        : `Bruto reconstruído (÷ ${(1 - rates.serviceFee).toFixed(2).replace('.', ',')})`,
+      usd: c.usdGross,
+      muted: true,
+    },
     { label: `Service fee ${pct(rates.serviceFee)}`, usd: -c.usdFee, muted: true },
     ...(c.usdCharges ? [{ label: 'Outras cobranças', usd: -c.usdCharges }] : []),
     { label: 'Sacado da Upwork', usd: c.usdWithdrawn },
