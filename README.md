@@ -327,9 +327,14 @@ disagree about the money. A contract value smaller than saque + subscription
 would mean a negative service fee, so it is ignored and the value reconstructed —
 the statement names which of the two it used, every time.
 
-**The tithe's base changed on 29 September 2026.** Before that date it came out
-of the nota; from then on, out of the withdrawal. Each entry stores the rule of
-its own date, so reopening an older transfer never rewrites it.
+**The rules changed on 29 September 2026**: the tax went from 6% to 4,77%, and
+the tithe's base moved from the nota to the withdrawal. The change applies from
+that date on, to entries already saved as well as new ones — an entry dated
+29/09 or later that still carried the old 6% is read at 4,77%. Entries before it
+keep what they had, and each one stores the rule of its own date, so reopening an
+older transfer never rewrites it. This is a one-off correction written into the
+code with its date and old value; a rate you change yourself from here on freezes
+per entry as it always did.
 
 The rates — service fee, withdrawal fee, subscription, Wise + IOF, dízimo, imposto — live under the **%** button and
 are stored in the data file, so they are the same on every device. Each entry

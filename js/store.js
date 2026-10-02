@@ -6,7 +6,7 @@
 //   * the Save button (see app.js) — the only thing that commits to GitHub.
 
 import { isValidISO, todayISO } from './dates.js';
-import { DEFAULT_RATES, TITHE_RULE_CHANGED_ON, computeEntry } from './deductions.js';
+import { DEFAULT_RATES, RULE_CHANGED_ON, effectiveRates, computeEntry } from './deductions.js';
 import { round2 } from './money.js';
 
 const CONFIG_KEY = 'incomeCalendar.config';
@@ -111,12 +111,17 @@ export function makeEntry(partial = {}, fallbackRates = DEFAULT_RATES) {
     // que valia no dia dele.
     titheBase: partial.titheBase === 'gross' || partial.titheBase === 'withdrawn'
       ? partial.titheBase
-      : (date && date < TITHE_RULE_CHANGED_ON ? 'gross' : 'withdrawn'),
+      : (date && date < RULE_CHANGED_ON ? 'gross' : 'withdrawn'),
     rate: kind === 'upwork' && partial.rate != null ? Number(partial.rate) : null,
     ptax: kind === 'upwork' && partial.ptax != null ? Number(partial.ptax) : null,
     // As taxas ficam gravadas na entrada: mudar uma taxa hoje não pode
-    // reescrever o que já aconteceu.
-    rates: { ...DEFAULT_RATES, ...fallbackRates, ...(partial.rates || {}) },
+    // reescrever o que já aconteceu. A exceção é a virada de 29/09, que vale
+    // dali em diante mesmo para o que já estava gravado — e aqui ela é aplicada
+    // à própria entrada, para o arquivo não dizer uma alíquota e usar outra.
+    rates: effectiveRates(
+      { date, rates: { ...DEFAULT_RATES, ...fallbackRates, ...(partial.rates || {}) } },
+      fallbackRates,
+    ),
     // Fica no base, e não lá embaixo, porque derive() precisa dele para saber
     // se desconta o imposto. Não dito quer dizer sim: toda renda que passa pelo
     // CNPJ é faturamento, e é o caso das que existem hoje — assim um arquivo

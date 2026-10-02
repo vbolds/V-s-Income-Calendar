@@ -45,10 +45,33 @@ export const DEFAULT_RATES = {
   tax: 0.0477,        // imposto do CNPJ, sobre a base da nota
 };
 
-// A regra do dízimo mudou nesta data: antes saía da base da nota, agora sai do
-// saque convertido pelo VET. Entradas anteriores guardam a regra antiga, para
-// que o passado não se reescreva sozinho.
-export const TITHE_RULE_CHANGED_ON = '2026-09-29';
+// As regras mudaram nesta data: o imposto caiu de 6% para 4,77% e o dízimo
+// passou a sair do saque, não da base da nota.
+export const RULE_CHANGED_ON = '2026-09-29';
+export const TITHE_RULE_CHANGED_ON = RULE_CHANGED_ON;
+
+// Cada entrada congela as taxas de quando foi criada, para que mexer numa taxa
+// hoje não reescreva o passado. A mudança de 29/09 é a exceção, e vale de lá em
+// diante mesmo para o que já estava gravado: lançamentos daquela data em diante
+// que ainda carreguem a alíquota velha passam para a nova.
+//
+// Isto é uma correção pontual, com data e valor antigo escritos na mão — não é
+// "usar sempre a taxa de hoje". Uma mudança de alíquota futura volta a congelar
+// normalmente, e nada antes de 29/09 é tocado.
+const SUPERSEDED = [{ from: RULE_CHANGED_ON, key: 'tax', old: 0.06, now: 0.0477 }];
+
+export function effectiveRates(entry, fallback = DEFAULT_RATES) {
+  const rates = ratesFor(entry, fallback);
+  if (!entry || !entry.date) return rates;
+
+  let out = rates;
+  for (const rule of SUPERSEDED) {
+    if (entry.date < rule.from) continue;
+    if (out[rule.key] !== rule.old) continue;
+    out = { ...out, [rule.key]: rule.now };
+  }
+  return out;
+}
 
 // Só serve de reserva para entradas antigas, de antes do campo de PTAX: o VET é
 // o câmbio já descontado da tarifa e do IOF (5,1028 vira 5,0588), então desfazer
@@ -79,7 +102,7 @@ function taxOn(gross, entry, rates) {
 // os números na tela sempre fechem com o total ao lado deles.
 export function computeEntry(entry, fallbackRates = DEFAULT_RATES) {
   if (!entry) return { ...EMPTY };
-  const rates = ratesFor(entry, fallbackRates);
+  const rates = effectiveRates(entry, fallbackRates);
   return entry.kind === 'upwork' ? computeUpwork(entry, rates) : computeBrl(entry, rates);
 }
 
@@ -164,7 +187,7 @@ function computeUpwork(entry, rates) {
 // As linhas do extrato, para o preview no diálogo e para a dica na tabela.
 export function statement(entry, fallbackRates = DEFAULT_RATES) {
   const c = computeEntry(entry, fallbackRates);
-  const rates = ratesFor(entry, fallbackRates);
+  const rates = effectiveRates(entry, fallbackRates);
   if (c.gross == null) return [];
 
   if (entry.kind !== 'upwork') {

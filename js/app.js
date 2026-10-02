@@ -2,7 +2,7 @@
 // rolling-window summary, local draft autosave, and the one-commit Save button.
 
 import { CalendarView, escapeHtml } from './calendar.js';
-import { DEFAULT_RATES, TITHE_RULE_CHANGED_ON, statement } from './deductions.js';
+import { DEFAULT_RATES, RULE_CHANGED_ON, statement } from './deductions.js';
 import { hueStyle } from './palette.js';
 import { MONTH_NAMES, addMonths, formatLong, todayISO } from './dates.js';
 import { GitHubError, getFile, putFile, verifyAccess } from './github.js';
@@ -509,7 +509,7 @@ function openDayDialog(iso, entry = null) {
 
 // A regra do dízimo é a que valia na data do lançamento, não a de hoje.
 function titheBaseFor(date) {
-  return date && date < TITHE_RULE_CHANGED_ON ? 'gross' : 'withdrawn';
+  return date && date < RULE_CHANGED_ON ? 'gross' : 'withdrawn';
 }
 
 function currentKind() {

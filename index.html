@@ -245,73 +245,46 @@
 <dialog id="day-dialog">
   <form method="dialog" class="day-dialog-inner">
     <h2 id="day-dialog-title">Add income</h2>
-    <label>
-      Date
-      <input id="day-date" type="date" required>
-    </label>
+
     <div class="kind-tabs" id="day-kind">
       <label class="kind-tab"><input type="radio" name="day-kind" value="brl" checked><span>Renda em R$</span></label>
       <label class="kind-tab"><input type="radio" name="day-kind" value="upwork"><span>Upwork (US$)</span></label>
     </div>
 
-    <label>
-      Source
-      <input id="day-source" type="text" placeholder="Salário, cliente, dividendo…" autocomplete="off">
-    </label>
-    <label>
-      Category
-      <input id="day-category" type="text" list="category-list" autocomplete="off" placeholder="Nova ou já existente">
-    </label>
+    <div class="field-row">
+      <label>Data<input id="day-date" type="date" required></label>
+      <label>Categoria<input id="day-category" type="text" list="category-list" autocomplete="off" placeholder="—"></label>
+    </div>
 
-    <label id="field-gross">
-      Bruto (R$)
-      <input id="day-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
-    </label>
+    <label>Fonte<input id="day-source" type="text" placeholder="Salário, cliente, dividendo…" autocomplete="off"></label>
+
+    <label id="field-gross">Bruto (R$)<input id="day-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
 
     <div id="fields-upwork" class="hidden">
-      <label>
-        Valor do saque (US$)
-        <input id="day-withdrawn" type="text" inputmode="decimal" autocomplete="off" placeholder="1707,98">
-        <small class="muted">O valor que a Upwork está mostrando para você sacar.</small>
-      </label>
-      <label>
-        Subscription fee (US$)
-        <input id="day-subscription" type="text" inputmode="decimal" autocomplete="off" placeholder="19,99">
-        <small class="muted">O que a Upwork cobrou no mês, já descontado do saque. Volta para a conta do contrato.</small>
-      </label>
-      <label>
-        Valor de contrato (US$) <span class="opt">opcional</span>
+      <div class="field-row">
+        <label title="O valor que a Upwork está mostrando para você sacar">Saque (US$)<input id="day-withdrawn" type="text" inputmode="decimal" autocomplete="off" placeholder="1707,98"></label>
+        <label title="O que a Upwork cobrou no mês, já descontado do saque">Subscription (US$)<input id="day-subscription" type="text" inputmode="decimal" autocomplete="off" placeholder="19,99"></label>
+      </div>
+      <div class="field-row">
+        <label title="Converte o que cai na conta e a base do dízimo">VET da Wise<input id="day-rate" type="text" inputmode="decimal" autocomplete="off" placeholder="5,1735"></label>
+        <label title="O câmbio da nota fiscal, no site do Banco Central">PTAX dia anterior<input id="day-ptax" type="text" inputmode="decimal" autocomplete="off" placeholder="5,1803"></label>
+      </div>
+      <details class="extra">
+        <summary>Valor de contrato</summary>
         <input id="day-billed" type="text" inputmode="decimal" autocomplete="off" placeholder="2032,90">
-        <small class="muted">Só se quiser a nota no centavo exato. Vazio, é reconstruído por (saque + subscription) ÷ 0,85.</small>
-      </label>
-      <label>
-        Câmbio — VET da Wise
-        <input id="day-rate" type="text" inputmode="decimal" autocomplete="off" placeholder="5,1735">
-        <small class="muted">Converte o que cai na conta e a base do dízimo.</small>
-      </label>
-      <label>
-        PTAX do dia anterior
-        <input id="day-ptax" type="text" inputmode="decimal" autocomplete="off" placeholder="5,1803">
-        <small class="muted">O câmbio da nota fiscal, no site do Banco Central. É ele que dá a base do imposto.</small>
-      </label>
+        <small class="muted">Vazio, sai de (saque + subscription) ÷ 0,85.</small>
+      </details>
     </div>
 
     <div class="checkbox-row">
-      <label class="checkbox-label received">
-        <input id="day-received" type="checkbox">
-        <span>Recebido</span>
-      </label>
-      <label class="checkbox-label taxed" title="Entra no faturamento do CNPJ, com nota fiscal">
-        <input id="day-taxed" type="checkbox" checked>
-        <span>Nota fiscal</span>
-      </label>
+      <label class="checkbox-label received"><input id="day-received" type="checkbox"><span>Recebido</span></label>
+      <label class="checkbox-label taxed" title="Entra no faturamento do CNPJ, com nota fiscal"><input id="day-taxed" type="checkbox" checked><span>Nota fiscal</span></label>
     </div>
 
     <div class="statement" id="day-statement"></div>
-    <label>
-      Notes
-      <input id="day-notes" type="text" autocomplete="off" placeholder="optional">
-    </label>
+
+    <label>Notas<input id="day-notes" type="text" autocomplete="off" placeholder="opcional"></label>
+
     <menu>
       <!-- type="button" mantém Excluir e Cancelar fora do caminho: o primeiro
            botão de submit do formulário é o que o Enter aciona, e esse tem que
