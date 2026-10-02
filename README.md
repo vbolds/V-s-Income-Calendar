@@ -164,8 +164,8 @@ ticked when dated today or earlier, unticked when dated ahead.
 
 | Field | What to put there |
 | --- | --- |
-| **Previsto de saque** | What Upwork shows after its 15% — add the weeks up with `+`, e.g. `457,20 + 436,09 + 440,78 + 393,89`. Everything that reaches the account follows from this |
-| **Faturado** *(optional)* | The billed amount, if you want the nota exact to the centavo. Left empty, the gross is worked back out of the previsto |
+| **Na Upwork, depois dos 15%** | The net of each week as Upwork shows it, summed with `+`, e.g. `457,20 + 436,09 + 440,78 + 393,89`. It is **not** the amount you withdraw — the charges and the withdrawal fee still come off it |
+| **Faturado** *(optional)* | The billed amount, if you want the nota exact to the centavo. Left empty, the gross is worked back out of that figure |
 | **Outras cobranças** | Anything Upwork charged on top that month, such as a subscription renewal. Leave it empty if there was none |
 | **VET da Wise** | The rate of the transfer. It converts what actually reaches the account |
 | **PTAX do dia anterior** | The rate the Receita uses for the nota fiscal, from the Banco Central site. It converts the reconstructed gross into the base for the dízimo and the tax |
@@ -260,7 +260,7 @@ the app. Drafts are local only and never create commits.
 }
 ```
 
-An Upwork entry carries `"kind": "upwork"` with `usdNet` (the previsto de saque),
+An Upwork entry carries `"kind": "upwork"` with `usdNet` (what is left on Upwork after its 15%),
 an optional `usdBilled`, `usdCharges`, `rate` (the VET) and `ptax` instead of
 `gross`, plus a calculated `usdGross` and `usdSent`. The calculated fields (`grossBRL`, `usdGross`,
 `usdSent`, `tithe`, `tax`, `landed`, `net`) are written
@@ -288,15 +288,15 @@ the **imposto** (6% of turnover — the value of the nota fiscal).
 
     Bruto R$ 8.000,00  − dízimo R$ 800,00  − imposto R$ 480,00  = R$ 6.720,00 livre
 
-**Upwork** — you type only the **previsto de saque**, the figure Upwork shows
-once its 15% is gone. The gross is worked back out of it by **dividing by 0,85**,
+**Upwork** — you type the figure Upwork shows once its 15% is gone, before
+anything else comes off it. The gross is worked back out of it by **dividing by 0,85**,
 never by multiplying by 1,15: US$ 1.727,96 ÷ 0,85 = US$ 2.032,89, whereas
 × 1,15 would give US$ 1.987,15 and the nota would come out smaller than it was.
 
 From there the deductions follow the Upwork statement, and their order matters,
 because the service fee is a percentage and the other two are fixed amounts:
 
-    Previsto de saque     US$ 1.727,96   457,20 + 436,09 + 440,78 + 393,89
+    Na Upwork (−15%)      US$ 1.727,96   457,20 + 436,09 + 440,78 + 393,89
     Bruto reconstruído    US$ 2.032,89   (÷ 0,85)
       service fee 15%     US$   304,93
     − outras cobranças    US$    19,99   subscription renewal
@@ -329,8 +329,8 @@ cents before you added them up — about five centavos on the nota. When that
 matters, fill in **Faturado** and the real figure takes over as the nota's base,
 with the service fee shown as the real US$ 304,94 rather than the implied
 US$ 304,93. It changes only the nota: what leaves Upwork and what reaches the
-account still follow the previsto you typed, so the two can never disagree about
-the money. A faturado that is not larger than the previsto would mean a negative
+account still follow the figure you typed, so the two can never disagree about
+the money. A faturado that is not larger than that figure would mean a negative
 fee, so it is ignored and the gross is reconstructed instead — the statement
 names which of the two it used, every time.
 

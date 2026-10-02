@@ -5,9 +5,15 @@
 //   kind: 'brl'     salário e afins. Você digita o bruto em reais.
 //                   dízimo = 10% do bruto; livre = bruto − dízimo − imposto.
 //
-//   kind: 'upwork'  a transferência mensal. Você digita só o PREVISTO DE SAQUE
-//                   — o valor na Upwork já sem os 15% — mais o que ela cobrou
-//                   à parte no mês, o VET da Wise e o PTAX do dia anterior.
+//   kind: 'upwork'  a transferência mensal. Você digita o valor NA UPWORK DEPOIS
+//                   DOS 15% — o net das semanas, antes de tudo o que vem a
+//                   seguir —, mais o que ela cobrou à parte no mês, o VET da
+//                   Wise e o PTAX do dia anterior.
+//
+// O nome do campo importa: ele NÃO é o valor sacado. O sacado já é esse menos as
+// outras cobranças, e confundir os dois encolhe o bruto reconstruído e, com ele,
+// a nota fiscal — sem mexer um centavo no que cai na conta, que é o que torna o
+// erro difícil de perceber.
 //
 // O bruto normalmente não se digita: ele é reconstruído do previsto, DIVIDINDO
 // por (1 − fee) e nunca multiplicando por (1 + fee). US$ 1.727,96 ÷ 0,85 =
@@ -102,8 +108,7 @@ function computeUpwork(entry, rates) {
   const rate = entry.rate == null ? null : Number(entry.rate);
   if (usdNet == null || !Number.isFinite(rate)) return { ...EMPTY };
 
-  // O bruto da nota: o faturado quando informado, senão reconstruído do
-  // previsto. Um faturado que não seja maior que o previsto não é faturado
+  // O bruto da nota: o faturado quando informado, senão reconstruído do net. Um faturado que não seja maior que o previsto não é faturado
   // nenhum — seria uma service fee negativa —, então nesse caso reconstrói.
   const typed = entry.usdBilled == null ? null : round2(entry.usdBilled);
   const billedUsed = typed != null && typed > usdNet;
@@ -112,7 +117,7 @@ function computeUpwork(entry, rates) {
   // pontas que estão na tela.
   const usdFee = round2(usdGross - usdNet);
 
-  // Daqui pra baixo quem manda é o previsto: é dele que saem as cobranças.
+  // Daqui pra baixo: as cobranças saem do net, e o saque sai do que sobrou.
   const usdCharges = entry.usdCharges == null ? 0 : round2(entry.usdCharges);
   const usdWithdrawn = round2(usdNet - usdCharges);
   const usdSent = round2(usdWithdrawn - rates.withdrawal);
@@ -166,7 +171,7 @@ export function statement(entry, fallbackRates = DEFAULT_RATES) {
   }
 
   return [
-    { label: 'Previsto de saque (já sem os 15%)', usd: entry.usdNet },
+    { label: 'Na Upwork, depois dos 15%', usd: entry.usdNet },
     {
       label: c.billedUsed
         ? 'Faturado na Upwork (informado)'
