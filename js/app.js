@@ -48,7 +48,6 @@ let table;
 let range = { from: addMonths(todayISO(), -1), to: todayISO() };
 let categoryFilter = '';
 let flagFilter = '';
-let rates = { ...DEFAULT_RATES };
 let editingId = null;
 let draftTimer = null;
 let saving = false;
@@ -169,10 +168,11 @@ async function loadFromGitHub() {
   setStatus('Loading…');
   try {
     const { text, sha } = await getFile({ ...config, token });
-    const parsed = text ? parseFile(text) : { entries: [], dropped: 0, rates: { ...DEFAULT_RATES } };
+    const parsed = text
+      ? parseFile(text)
+      : { entries: [], dropped: 0, rates: { ...DEFAULT_RATES }, periods: [] };
     const { entries, dropped } = parsed;
-    rates = parsed.rates;
-    store.setRemote(entries, sha);
+    store.setRemote(entries, sha, { rates: parsed.rates, periods: parsed.periods });
 
     if (dropped) toast(`${dropped} entr${dropped === 1 ? 'y was' : 'ies were'} skipped — no valid date.`, 'warn');
     if (!text) toast('No data file yet — it will be created on your first Save.');
@@ -230,7 +230,7 @@ async function save() {
     const result = await putFile({
       ...config,
       token,
-      text: serializeFile(store.entries, rates),
+      text: serializeFile(store.entries, store.settings.rates, store.settings.periods),
       sha: store.sha,
       message: commitMessage(),
     });
@@ -269,7 +269,7 @@ async function handleConflict() {
     const result = await putFile({
       ...config,
       token,
-      text: serializeFile(store.entries, rates),
+      text: serializeFile(store.entries, store.settings.rates, store.settings.periods),
       sha: fresh.sha,
       message: commitMessage(),
     });
@@ -335,6 +335,23 @@ function wireApp() {
       renderAll();
     });
   }
+
+  // Um clique só no botão do período aplica as duas datas; o × apaga.
+  el('saved-periods').addEventListener('click', (event) => {
+    const remove = event.target.closest('[data-remove-period]');
+    if (remove) {
+      const period = store.settings.periods.find((p) => p.id === remove.dataset.removePeriod);
+      if (period && confirm(`Apagar o período "${period.name}"?`)) {
+        store.removePeriod(period.id);
+        renderAll();
+      }
+      return;
+    }
+
+    const chip = event.target.closest('[data-period]');
+    if (chip) applyPeriod(chip.dataset.period);
+    else if (event.target.closest('#save-period')) savePeriod();
+  });
 
   el('category-filter').addEventListener('change', () => setCategoryFilter(el('category-filter').value));
 
@@ -436,6 +453,41 @@ function applyRangeInput(which) {
   renderAll();
 }
 
+function applyPeriod(id) {
+  const period = store.settings.periods.find((p) => p.id === id);
+  if (!period) return;
+  range = { from: period.from, to: period.to };
+  syncRangeInputs();
+  renderAll();
+}
+
+// Guardar o intervalo que está na tela, com um nome. Ele vai para o arquivo,
+// então vale em todos os aparelhos — e, como tudo aqui, só vira commit no Save.
+function savePeriod() {
+  const sugestao = `${formatLong(range.from)} → ${formatLong(range.to)}`;
+  const name = prompt('Nome para este período:', sugestao);
+  if (name === null) return;
+  const period = store.savePeriod(name, range.from, range.to);
+  if (!period) return toast('Dê um nome ao período para salvá-lo.', 'warn');
+  renderAll();
+  toast(`Período "${period.name}" salvo.`);
+}
+
+// Os botões dos períodos salvos. O que casa com o intervalo na tela aparece
+// pressionado, para dar para saber onde se está sem conferir as datas.
+function renderSavedPeriods() {
+  const box = el('saved-periods');
+  const chips = store.settings.periods.map((p) => {
+    const active = p.from === range.from && p.to === range.to;
+    return `
+      <span class="period-chip${active ? ' active' : ''}">
+        <button type="button" data-period="${p.id}" title="${escapeHtml(`${p.from} → ${p.to}`)}">${escapeHtml(p.name)}</button>
+        <button type="button" class="period-del" data-remove-period="${p.id}" title="Apagar este período" aria-label="Apagar">×</button>
+      </span>`;
+  });
+  box.innerHTML = `${chips.join('')}<button type="button" id="save-period" class="ghost small-btn">+ Salvar período</button>`;
+}
+
 function syncRangeInputs() {
   el('range-from').value = range.from;
   el('range-to').value = range.to;
@@ -483,7 +535,7 @@ function openDayDialog(iso, entry = null) {
   el('day-withdrawn').value = entry && entry.usdWithdrawn != null ? String(entry.usdWithdrawn).replace('.', ',') : '';
   // Numa entrada nova a subscription já vem preenchida com a vigente: é o que
   // ela é quase sempre, e fica aberta para mudar.
-  el('day-subscription').value = String(entry ? entry.usdSubscription ?? 0 : rates.subscription).replace('.', ',');
+  el('day-subscription').value = String(entry ? entry.usdSubscription ?? 0 : store.settings.rates.subscription).replace('.', ',');
   el('day-billed').value = entry && entry.usdBilled != null ? String(entry.usdBilled).replace('.', ',') : '';
   el('day-rate').value = entry && entry.rate != null ? String(entry.rate).replace('.', ',') : '';
   el('day-ptax').value = entry && entry.ptax != null ? String(entry.ptax).replace('.', ',') : '';
@@ -537,14 +589,14 @@ function dialogEntry() {
     rate: kind === 'upwork' ? parseRate(el('day-rate').value) : null,
     ptax: kind === 'upwork' ? parseRate(el('day-ptax').value) : null,
     taxed: el('day-taxed').checked,
-    rates,
+    rates: store.settings.rates,
   };
 }
 
 // O extrato ao vivo: é ele que faz as vezes da calculadora, e some a dúvida
 // sobre que número vai parar na tabela.
 function updateStatement() {
-  const lines = statement(dialogEntry(), rates);
+  const lines = statement(dialogEntry(), store.settings.rates);
   const box = el('day-statement');
 
   if (!lines.length) {
@@ -621,12 +673,13 @@ function wireDayDialog() {
 function wireRatesDialog() {
   const dialog = el('rates-dialog');
   el('rates-btn').addEventListener('click', () => {
-    el('rate-service').value = String(round1(rates.serviceFee * 100)).replace('.', ',');
-    el('rate-withdrawal').value = String(rates.withdrawal).replace('.', ',');
-    el('rate-wise').value = String(round2pct(rates.wiseFee * 100)).replace('.', ',');
-    el('rate-tithe').value = String(round1(rates.tithe * 100)).replace('.', ',');
-    el('rate-tax').value = String(round2pct(rates.tax * 100)).replace('.', ',');
-    el('rate-subscription').value = String(rates.subscription).replace('.', ',');
+    const r = store.settings.rates;
+    el('rate-service').value = String(round1(r.serviceFee * 100)).replace('.', ',');
+    el('rate-withdrawal').value = String(r.withdrawal).replace('.', ',');
+    el('rate-wise').value = String(round2pct(r.wiseFee * 100)).replace('.', ',');
+    el('rate-tithe').value = String(round1(r.tithe * 100)).replace('.', ',');
+    el('rate-tax').value = String(round2pct(r.tax * 100)).replace('.', ',');
+    el('rate-subscription').value = String(r.subscription).replace('.', ',');
     dialog.showModal();
   });
   el('rates-cancel').addEventListener('click', () => dialog.close('cancel'));
@@ -640,16 +693,15 @@ function wireRatesDialog() {
     const tax = parseAmount(el('rate-tax').value);
     const subscription = parseAmount(el('rate-subscription').value);
 
-    rates = {
-      serviceFee: service == null ? rates.serviceFee : service / 100,
-      withdrawal: withdrawal == null ? rates.withdrawal : withdrawal,
-      wiseFee: wise == null ? rates.wiseFee : wise / 100,
-      tithe: tithe == null ? rates.tithe : tithe / 100,
-      tax: tax == null ? rates.tax : tax / 100,
-      subscription: subscription == null ? rates.subscription : subscription,
-    };
-    // Só entradas novas usam as taxas novas; as que existem guardam as suas.
-    store.emit();
+    const atual = store.settings.rates;
+    store.setRates({
+      serviceFee: service == null ? atual.serviceFee : service / 100,
+      withdrawal: withdrawal == null ? atual.withdrawal : withdrawal,
+      wiseFee: wise == null ? atual.wiseFee : wise / 100,
+      tithe: tithe == null ? atual.tithe : tithe / 100,
+      tax: tax == null ? atual.tax : tax / 100,
+      subscription: subscription == null ? atual.subscription : subscription,
+    });
     toast('Taxas atualizadas. Valem para entradas novas.');
   });
 }
@@ -678,6 +730,7 @@ function renderAll() {
   calendar.render();
   table.requestRender();
   renderCategoryOptions();
+  renderSavedPeriods();
   renderSummary();
   updateSaveStatus();
 }
@@ -703,11 +756,14 @@ function renderSummary() {
   el('total-pending').textContent = formatAmount(result.pendingNet, config.currency);
   el('count-pending').textContent = entryCount(result.pendingCount);
   el('total-tithe').textContent = formatAmount(result.titheTotal, config.currency);
-  el('tithe-note').textContent = `${pctLabel(rates.tithe)} de todo o bruto`;
+  // Desde a virada de 29/09 a base do dízimo depende do tipo de renda — o bruto
+  // nas rendas em reais, o saque nas da Upwork —, então a legenda não promete
+  // mais uma só.
+  el('tithe-note').textContent = `${pctLabel(store.settings.rates.tithe)} de cada renda`;
   el('total-tax').textContent = formatAmount(result.taxTotal, config.currency);
   el('tax-note').textContent = result.count && result.taxedCount < result.count
-    ? `${pctLabel(rates.tax)} · ${result.taxedCount} de ${result.count} com nota`
-    : `${pctLabel(rates.tax)} do faturamento`;
+    ? `${pctLabel(store.settings.rates.tax)} · ${result.taxedCount} de ${result.count} com nota`
+    : `${pctLabel(store.settings.rates.tax)} da base da nota`;
   renderDeductionLine(result);
 
   for (const card of document.querySelectorAll('[data-flag]')) {

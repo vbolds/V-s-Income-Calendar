@@ -168,8 +168,29 @@ export function categoriesOf(entries) {
 
 // Entries with a bad shape are dropped rather than allowed to break the views;
 // the count of what was dropped is reported so nothing disappears silently.
+// Um período salvo é só um nome e duas datas. Nome vazio ou datas inválidas
+// saem fora em silêncio: é uma conveniência, não pode quebrar a carga.
+function parsePeriods(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const name = typeof item.name === 'string' ? item.name.trim() : '';
+    if (!name || !isValidISO(item.from) || !isValidISO(item.to)) continue;
+    out.push({
+      id: typeof item.id === 'string' ? item.id : newId(),
+      name,
+      from: item.from <= item.to ? item.from : item.to,
+      to: item.from <= item.to ? item.to : item.from,
+    });
+  }
+  return out;
+}
+
 export function parseFile(text) {
-  if (!text || !text.trim()) return { entries: [], dropped: 0, rates: { ...DEFAULT_RATES } };
+  if (!text || !text.trim()) {
+    return { entries: [], dropped: 0, rates: { ...DEFAULT_RATES }, periods: [] };
+  }
 
   let data;
   try {
@@ -184,6 +205,7 @@ export function parseFile(text) {
   // As taxas vigentes moram no arquivo, não no navegador, para valerem em todos
   // os aparelhos. Elas só servem de padrão para entradas novas.
   const rates = { ...DEFAULT_RATES, ...(data.settings && data.settings.rates) };
+  const periods = parsePeriods(data.settings && data.settings.periods);
   const entries = [];
   let dropped = 0;
   for (const item of raw) {
@@ -217,14 +239,19 @@ export function parseFile(text) {
       notes: typeof item.notes === 'string' ? item.notes : '',
     }, rates));
   }
-  return { entries: sortEntries(entries), dropped, rates };
+  return { entries: sortEntries(entries), dropped, rates, periods };
 }
 
-export function serializeFile(entries, rates = DEFAULT_RATES) {
+export function serializeFile(entries, rates = DEFAULT_RATES, periods = []) {
   const payload = {
     version: FILE_VERSION,
     updatedAt: new Date().toISOString(),
-    settings: { rates: { ...DEFAULT_RATES, ...rates } },
+    settings: {
+      rates: { ...DEFAULT_RATES, ...rates },
+      // No arquivo, e não no navegador, para os períodos salvos aparecerem
+      // iguais no computador e no celular — como as taxas.
+      periods: periods.map((p) => ({ id: p.id, name: p.name, from: p.from, to: p.to })),
+    },
     entries: sortEntries(entries).map((e) => ({
       id: e.id,
       date: e.date,
@@ -270,13 +297,16 @@ export function sortEntries(entries) {
 // Só o que foi digitado conta como mudança: gross/tithe/landed/net saem das
 // regras, então recalculá-los ao carregar não pode parecer uma edição pendente.
 // (Para renda em reais o próprio gross é digitado, por isso ele entra.)
-function fingerprint(entries) {
-  return JSON.stringify(sortEntries(entries).map((e) => [
+function fingerprint(entries, settings = null) {
+  const shape = sortEntries(entries).map((e) => [
     e.date, e.source, e.category, e.kind,
     e.kind === 'upwork' ? [e.usdWithdrawn, e.usdSubscription, e.usdBilled, e.rate, e.ptax, e.titheBase] : e.gross,
     e.rates.serviceFee, e.rates.withdrawal, e.rates.tithe, e.rates.tax,
     e.received, e.taxed, e.notes,
-  ]));
+  ]);
+  // As taxas e os períodos moram no mesmo arquivo, então mexer neles também é
+  // uma mudança por salvar — antes só as entradas acendiam o botão Save.
+  return JSON.stringify(settings ? [shape, settings.rates, settings.periods] : [shape]);
 }
 
 /* ---------------- store ---------------- */
@@ -284,8 +314,9 @@ function fingerprint(entries) {
 export class Store {
   constructor() {
     this.entries = [];
+    this.settings = { rates: { ...DEFAULT_RATES }, periods: [] };
     this.sha = null;
-    this.savedFingerprint = fingerprint([]);
+    this.savedFingerprint = fingerprint([], this.settings);
     this.listeners = new Set();
   }
 
@@ -299,21 +330,50 @@ export class Store {
   }
 
   // Called after a successful load or save: this is now the state on GitHub.
-  setRemote(entries, sha) {
+  setRemote(entries, sha, settings = null) {
     this.entries = sortEntries(entries);
+    if (settings) this.settings = settings;
     this.sha = sha;
-    this.savedFingerprint = fingerprint(entries);
+    this.savedFingerprint = fingerprint(this.entries, this.settings);
     this.emit();
   }
 
   markSaved(sha) {
     this.sha = sha;
-    this.savedFingerprint = fingerprint(this.entries);
+    this.savedFingerprint = fingerprint(this.entries, this.settings);
     this.emit();
   }
 
   isDirty() {
-    return fingerprint(this.entries) !== this.savedFingerprint;
+    return fingerprint(this.entries, this.settings) !== this.savedFingerprint;
+  }
+
+  setRates(rates) {
+    this.settings = { ...this.settings, rates };
+    this.emit();
+  }
+
+  // Guarda o período com o nome dado. Reusar um nome sobrescreve, em vez de
+  // deixar dois botões iguais lado a lado.
+  savePeriod(name, from, to) {
+    const clean = String(name || '').trim();
+    if (!clean) return null;
+    const existing = this.settings.periods.find((p) => p.name.toLowerCase() === clean.toLowerCase());
+    const period = { id: existing ? existing.id : newId(), name: clean, from, to };
+    this.settings = {
+      ...this.settings,
+      periods: existing
+        ? this.settings.periods.map((p) => (p.id === existing.id ? period : p))
+        : [...this.settings.periods, period],
+    };
+    this.emit();
+    return period;
+  }
+
+  removePeriod(id) {
+    const before = this.settings.periods.length;
+    this.settings = { ...this.settings, periods: this.settings.periods.filter((p) => p.id !== id) };
+    if (this.settings.periods.length !== before) this.emit();
   }
 
   add(partial) {

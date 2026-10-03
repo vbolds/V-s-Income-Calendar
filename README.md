@@ -184,8 +184,8 @@ headline is the net for that period, with three figures under it:
 | --- | --- |
 | **✓ Received** | Net already in hand |
 | **◷ Expected** | Net still to come |
-| **◈ Dízimo** | 10% of all the gross in the period — the amount owed |
-| **▤ Imposto** | 4,77% of the nota's base on entries marked as nota fiscal |
+| **◈ Dízimo** | 10% of each income in the period — of the gross for income in reais, of the withdrawal for Upwork |
+| **▤ Imposto** | 4,77% of the nota's base, on entries marked as nota fiscal |
 
 **Click Received or Expected** to show only those entries — the headline, the table
 and the category breakdown all follow it, and the card reads as pressed. Click it
@@ -194,8 +194,18 @@ while a filter is on, so you can click straight from one to the other. The
 Dízimo figure and the arithmetic line below the cards describe whatever is on
 screen, so they follow every filter. Category and card filters combine.
 
+**Save a period you keep coming back to** — set From and To, press
+**+ Salvar período** and give it a name. It becomes a button under the presets:
+one click sets both dates, and the one matching what is on screen reads as
+pressed. The **×** on it deletes it, asking first. Reusing a name overwrites that
+period instead of leaving two buttons alike.
+
+Saved periods live in the data file, beside the rates, so they are the same on
+every device — and, like every other edit, they only reach GitHub when you press
+**Save**.
+
 The calendar highlights the days the period covers, and the breakdown strip shows
-the net per category. The presets are:
+the net per category. The fixed presets are:
 
 | Preset | What it does |
 | --- | --- |
@@ -231,6 +241,9 @@ the app. Drafts are local only and never create commits.
   makes are all free. The only thing that would ever cost money is an optional
   custom domain.
 
+Saved periods and the rates both sit under `settings` in the data file, and both
+count as unsaved changes until you press **Save**.
+
 ### Data format
 
 ```json
@@ -238,7 +251,10 @@ the app. Drafts are local only and never create commits.
   "version": 2,
   "updatedAt": "2026-08-22T12:00:00.000Z",
   "settings": {
-    "rates": { "serviceFee": 0.15, "withdrawal": 2.99, "subscription": 19.99, "wiseFee": 0.0086, "tithe": 0.1, "tax": 0.0477 }
+    "rates": { "serviceFee": 0.15, "withdrawal": 2.99, "subscription": 19.99, "wiseFee": 0.0086, "tithe": 0.1, "tax": 0.0477 },
+    "periods": [
+      { "id": "7b1e…", "name": "Agosto", "from": "2026-08-01", "to": "2026-09-02" }
+    ]
   },
   "entries": [
     {

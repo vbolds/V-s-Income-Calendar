@@ -291,6 +291,43 @@ label.inline select { max-width: 170px; }
 .hero-sub b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 .hero-sub .dot { opacity: 0.5; }
 
+.saved-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+
+/* O período salvo é um botão com um × colado: um clique aplica, o outro apaga,
+   sem precisar de menu. */
+.period-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.period-chip > button {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.period-chip > button:hover { background: var(--accent-soft); color: var(--accent); }
+.period-chip .period-del {
+  padding: 4px 8px;
+  color: var(--muted);
+  border-left: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1;
+}
+.period-chip .period-del:hover { background: var(--error-soft); color: var(--error); }
+.period-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.period-chip.active > button { color: var(--accent); }
+
 .hero-split { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 .split-card {
